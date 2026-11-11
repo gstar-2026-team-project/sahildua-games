@@ -5,6 +5,8 @@
 A standalone, real-time space arcade adventure. Pilot a salvage tug, intercept
 drifting cargo, lock it onto your ship, and bring it home safely.
 
+**[Play Orbital Salvage in your browser](https://gstar-2026-team-project.github.io/sahildua-games/orbital-salvage/)**
+
 ```sh
 cd orbital-salvage
 npm run dev
