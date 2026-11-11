@@ -31,7 +31,33 @@ try{
   await send('Runtime.enable');await send('Page.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
   await send('Page.navigate',{url:origin});await waitFor('!!window.orbitalSalvage');
+  assert.equal(await evaluate(`import('./src/hardware-sprites.js').then(m=>m.loadHardware())`),true,'all four local hardware sprites must load and contain visible artwork');
+  const atlasAlpha=await evaluate(`(async()=>{
+    const image=new Image();image.src='./assets/salvage-hardware-realistic.png';await image.decode();
+    const canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
+    const ctx=canvas.getContext('2d');ctx.drawImage(image,0,0);return ctx.getImageData(0,0,1,1).data[3];
+  })()`);
+  assert.equal(atlasAlpha,0,'sprite sheet must have real transparency, without rectangular backgrounds');
+  report.push('Realistic hardware atlas loads all four sprites with genuine transparency.');
   await evaluate('document.fonts.ready');await screenshot('01-mission-select');
+  const skyMotion=await evaluate(`(async()=>{
+    const {SpaceBackground}=await import('./src/space-background.js');
+    const canvas=document.createElement('canvas');canvas.width=800;canvas.height=600;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true}),sky=new SpaceBackground();
+    await sky.image.decode();
+    const frame=(time,camera={x:0,y:0})=>{sky.draw(ctx,800,600,time,camera);return ctx.getImageData(0,0,800,600).data;};
+    const difference=(a,b)=>{let changed=0;for(let i=0;i<a.length;i+=4)if(Math.abs(a[i]-b[i])+Math.abs(a[i+1]-b[i+1])+Math.abs(a[i+2]-b[i+2])>8)changed++;return changed/(a.length/4);};
+    const initial=frame(0),idle=frame(10),travel=frame(10,{x:500,y:180});
+    const ambient=difference(initial,idle),flight=difference(idle,travel);
+    const frozen=difference(travel,frame(10,{x:500,y:180}));
+    sky.reduced=true;const reduced=difference(frame(0),frame(10));
+    return {ambient,flight,frozen,reduced};
+  })()`);
+  assert.ok(skyMotion.ambient>.02,`ambient sky should visibly evolve: ${JSON.stringify(skyMotion)}`);
+  assert.ok(skyMotion.flight>.15,`travel should visibly shift the sky: ${JSON.stringify(skyMotion)}`);
+  assert.equal(skyMotion.frozen,0,'paused sky should remain still');
+  assert.equal(skyMotion.reduced,0,'reduced-motion mode should suppress ambient sky motion');
+  report.push('Canvas pixel checks: sky drifts at rest, pans during flight, freezes on pause and respects reduced motion.');
   await evaluate('document.getElementById("launch-button").focus()');await key('Space',true,' ');await key('Space',false,' ');await waitFor('document.body.dataset.screen === "playing"');
   assert.ok(await evaluate('document.querySelector(".hud").getBoundingClientRect().height < 80'));
   assert.equal(await evaluate('!!document.getElementById("flight-hint")'),false);

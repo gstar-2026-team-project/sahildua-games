@@ -3,7 +3,7 @@
 **A little ship. A lot of momentum. Bring the scattered pieces home.**
 
 A polished, top-down Canvas game with drifting cargo, simple rigid pickup,
-moving asteroids, solar-wind disturbances, a colorful illustrated space backdrop,
+moving asteroids, solar-wind disturbances, a layered photographic-style space backdrop,
 synthesized audio, and four replayable contracts. The simulation always advances
 while a mission is playing, including when no controls are held.
 
@@ -16,6 +16,9 @@ npm run dev
 ```
 
 Open **http://127.0.0.1:5173**. Set `PORT=8080` to select another port. Keep the
+page open while editing: the development server automatically reloads it when
+HTML, styles, game code or assets change. After upgrading the server script,
+restart `npm run dev` once and refresh the page to enable automatic reload. Keep the
 page focused: changing tabs or losing window focus automatically pauses for
 human play. Resume with the button, P, or Escape.
 
@@ -24,10 +27,17 @@ keeps the clock running across focus/visibility changes and disables pause and
 the in-flight manual. Held agent controls persist while the page is hidden.
 Evaluation results do not change human personal records.
 
-Foreground artwork is generated in Canvas: a detailed tug, rotating station,
-illuminated cargo, textured asteroids, engine trails and pickup/delivery effects.
-The locally bundled illustrated nebula backdrop was made with the built-in image
-generation tool; its prompt is recorded in `assets/art-direction.md`. No live
+Foreground hardware uses locally bundled, pre-rendered realistic artwork:
+a weathered industrial tug and station, reinforced freight containers and
+cratered rock, with Canvas exhaust, navigation lights and restrained effects.
+The sprite atlas is trimmed once when it loads; procedural artwork provides a
+fallback if it cannot load. The sky uses
+separate star, gas and dust layers: distant objects pan slowly, nearby dust
+moves faster, and wisps drift gently even at rest. Camera travel is not clamped
+at the image edge. Reduced-motion preferences suppress ambient drift and streaks.
+The photographic-style planet backdrop and hardware atlas were made with the
+built-in image generation tool; their prompts are recorded in
+`assets/realistic-art-direction.md`. No live
 image service is used. Fonts are included locally with their SIL Open Font
 License notices. Audio is synthesized with Web Audio and starts muted;
 use the speaker button or M to enable it. Personal records and mute preferences
@@ -55,7 +65,7 @@ behind the ship. It shares the ship's position, heading, and velocity through
 turns and collisions; it cannot swing, tug at the ship, or break loose. Ship
 handling stays the same with a load. Dropped cargo inherits the ship's drift.
 
-**Docking:** fly the ship or its carried container into the cyan home circle.
+**Docking:** fly the ship or its carried container into the marked home circle.
 Unloading is automatic; you do not need to release cargo. First Recovery accepts
 the ship at its full speed in a generous 165 m zone, as does Open Recovery. Later missions use a 145 m
 zone and ask you to brake below 120 m/s. The station has a clear approach.
@@ -96,11 +106,13 @@ does not stop drifting, steering, tractor use, or a possible coasting recovery.
 ```text
 src/simulation.js   Dependency-free deterministic physics, missions, scoring
 src/renderer.js     Canvas scene, camera, trails, particles, minimap
-src/art.js          Procedural ship, station, cargo, asteroid and docking artwork
+src/art.js          Hardware composition, loading fallbacks, docking and effects
+src/hardware-sprites.js  Local sprite atlas loading, alpha trimming and drawing
+src/space-background.js  Layered sky, parallax, drifting gas and nearby dust
 src/main.js         Real-time loop, keyboard/touch input, HUD, menus, records
 src/evaluation.js   Paused/latency-injection episodes and exact-state diagnostic pilot
 src/audio.js        Optional synthesized sound effects
-assets/            Illustrated space backdrop and its art direction
+assets/            Local hardware atlas, backdrops and generation prompts
 assets/fonts/      Local fonts and license notices
 scripts/           Static development server and build copier
 tests/             Simulation tests and real-browser smoke tests

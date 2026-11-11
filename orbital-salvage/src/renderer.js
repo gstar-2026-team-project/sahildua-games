@@ -1,5 +1,7 @@
 import { WORLD, BEAM_RANGE, dockingZone, rng, length, clamp, nearestCargo } from './simulation.js';
 import { drawShip, drawStation, drawDock, drawAsteroid, drawCargoBody } from './art.js';
+import { SpaceBackground } from './space-background.js';
+import { loadHardware, drawHardware } from './hardware-sprites.js';
 
 const TAU = Math.PI * 2;
 function circle(ctx,x,y,r,fill,stroke){ctx.beginPath();ctx.arc(x,y,r,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}}
@@ -12,15 +14,15 @@ export class Renderer {
     this.canvas=canvas;this.ctx=canvas.getContext('2d');this.radar=radar;this.rctx=radar.getContext('2d');this.width=innerWidth;this.height=innerHeight;
     this.camera={x:0,y:0,zoom:1};this.particles=[];this.rings=[];this.trail=[];this.floaters=[];this.flash=0;this.shake=0;this.time=0;this.trailClock=0;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
     const random=rng(912384);
-    this.stars=Array.from({length:500},()=>({x:random(),y:random(),r:random()*1.3+.3,depth:.1+random()*.5,alpha:.18+random()*.7,phase:random()*TAU}));
     this.dust=Array.from({length:34},()=>({x:(random()-.5)*WORLD.width,y:(random()-.5)*WORLD.height,r:random()*3+1,a:random()*TAU}));
-    this.backdrop=new Image();this.backdrop.src=new URL('../assets/space-backdrop.png',import.meta.url).href;
+    this.sky=new SpaceBackground(this.reduced);
+    loadHardware();
     this.resize();
   }
   resize(){this.width=innerWidth;this.height=innerHeight;this.ratio=Math.min(devicePixelRatio||1,2);this.canvas.width=Math.round(this.width*this.ratio);this.canvas.height=Math.round(this.height*this.ratio);}
   reset(game,menu=false){
     this.particles=[];this.rings=[];this.trail=[];this.floaters=[];this.shake=0;this.flash=0;this.trailClock=0;
-    this.lastShip={x:game.ship.x,y:game.ship.y};
+    this.lastShip={x:game.ship.x,y:game.ship.y};this.sky.reset();
     this.camera.x=menu?-this.width*.22:game.ship.x;this.camera.y=menu?-this.height*.05:game.ship.y;this.camera.zoom=menu?1:this.targetZoom();
   }
   targetZoom(speed=0){return (this.width<760?.82:this.width<1100?1.04:1.16)*(1-Math.min(1,speed/220)*.08);}
@@ -30,13 +32,13 @@ export class Renderer {
   }
   event(event){
     if(event.type==='delivery'){
-      this.burst(event.x,event.y,'#8affdf',52,135);this.burst(event.x,event.y,'#ffd282',26,95);
-      this.rings.push({x:event.x,y:event.y,t:0,color:'#83ffe0'},{x:event.x,y:event.y,t:-.18,color:'#ffe0a3'});
+      this.burst(event.x,event.y,'#c4d4cc',20,70);this.burst(event.x,event.y,'#d7b68c',10,55);
+      this.rings.push({x:event.x,y:event.y,t:0,color:'#a6c5ba'});
       this.floaters.push({x:event.x,y:event.y,t:0,text:`+${event.points}`,color:'#e6ffce'});
-      if(!this.reduced)this.flash=.12;
+      if(!this.reduced)this.flash=.025;
     }
     if(event.type==='attach'){
-      this.burst(event.x,event.y,'#71eaff',25,70);this.rings.push({x:event.x,y:event.y,t:0,color:'#7ceaff',pickup:true});
+      this.burst(event.x,event.y,'#c5cdd2',7,35);this.rings.push({x:event.x,y:event.y,t:0,color:'#adbdc7',pickup:true});
     }
     if(event.type==='release')this.burst(this.lastShip.x,this.lastShip.y,'#8ed6f2',10,35);
     if(event.type==='collision'||event.type==='cargo-hit'){
@@ -44,29 +46,30 @@ export class Renderer {
       if(!this.reduced){this.shake=Math.min(7,event.force*.035);this.flash=.05;}
     }
     if(event.type==='end'&&event.reason==='complete'){
-      this.burst(this.lastShip.x,this.lastShip.y,'#8fffdc',38,175);
+      this.burst(this.lastShip.x,this.lastShip.y,'#b5c7bc',16,80);
     }
   }
   update(game,dt,menu){
-    this.time+=dt;const cam=this.camera,s=game.ship;
+    this.time+=dt;const cam=this.camera,s=game.ship,previousCamera={x:cam.x,y:cam.y};
     this.lastShip={x:s.x,y:s.y};
     const tx=menu?-this.width*.22:s.x+s.vx*.4,ty=menu?-this.height*.05:s.y+s.vy*.32;
     const follow=1-Math.exp(-dt*4);cam.x+=(tx-cam.x)*follow;cam.y+=(ty-cam.y)*follow;cam.zoom+=((menu?1:this.targetZoom(length(s)))-cam.zoom)*follow;
+    this.sky.update(cam,previousCamera,dt);
     this.shake*=Math.exp(-dt*13);this.flash*=Math.exp(-dt*7);
     this.trailClock+=dt;
-    if(!menu&&length(s)>15&&dt>0&&this.trailClock>.035){
+    if(!menu&&s.thrust>0&&dt>0&&this.trailClock>.035){
       this.trailClock=0;this.trail.push({x:s.x-Math.cos(s.angle)*22,y:s.y-Math.sin(s.angle)*22,t:this.time});
     }
     this.trail=this.trail.filter(p=>this.time-p.t<1.1).slice(-35);
     for(const f of this.floaters)f.t+=dt;
     this.floaters=this.floaters.filter(f=>f.t<1.1);
-    for(const p of this.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;p.vx*=1-dt*1.5;p.vy*=1-dt*1.5;}
+    for(const p of this.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;}
     this.particles=this.particles.filter(p=>p.life>0).slice(-550);
     for(const ring of this.rings)ring.t+=dt;
     this.rings=this.rings.filter(r=>r.t<1.4);
     if(s.thrust&&game.status==='playing'&&dt>0){
       const reverse=s.thrust<0,dir=s.angle+(reverse?0:Math.PI),ax=s.x+Math.cos(dir)*21,ay=s.y+Math.sin(dir)*21;
-      for(let i=0;i<Math.ceil(dt*70*Math.abs(s.thrust));i++){const a=dir+(Math.random()-.5)*.35;this.particles.push({x:ax,y:ay,vx:s.vx+Math.cos(a)*(70+Math.random()*60),vy:s.vy+Math.sin(a)*(70+Math.random()*60),life:.25+Math.random()*.3,max:.6,size:1+Math.random()*2.5,color:i%2?'#ffc98d':'#f1845c'});}
+      for(let i=0;i<Math.ceil(dt*35*Math.abs(s.thrust));i++){const a=dir+(Math.random()-.5)*.2;this.particles.push({x:ax,y:ay,vx:s.vx+Math.cos(a)*(80+Math.random()*60),vy:s.vy+Math.sin(a)*(80+Math.random()*60),life:.15+Math.random()*.2,max:.5,size:.4+Math.random()*.7,color:'#8ba7bc'});}
     }
   }
   render(game,menu=false,paused=false){
@@ -95,35 +98,13 @@ export class Renderer {
     else{this.indicators(ctx,game);this.drawRadar(game,t);}
     if(this.flash>.002&&!this.reduced){ctx.fillStyle=`rgba(129,255,224,${this.flash})`;ctx.fillRect(0,0,w,h);}
   }
-  background(ctx,w,h,t,cam){
-    ctx.fillStyle='#09152c';ctx.fillRect(0,0,w,h);
-    if(this.backdrop.complete&&this.backdrop.naturalWidth){
-      const scale=Math.max(w/this.backdrop.naturalWidth,h/this.backdrop.naturalHeight)*1.1;
-      const iw=this.backdrop.naturalWidth*scale,ih=this.backdrop.naturalHeight*scale;
-      const dx=Math.max(-w*.04,Math.min(w*.04,-cam.x*.025)),dy=Math.max(-h*.04,Math.min(h*.04,-cam.y*.025));
-      ctx.drawImage(this.backdrop,(w-iw)/2+dx,(h-ih)/2+dy,iw,ih);
-      ctx.fillStyle='#05122b38';ctx.fillRect(0,0,w,h);
-    }else{
-      glow(ctx,w*.8,h*.2,w*.6,'#3359a544');glow(ctx,w*.2,h*.8,w*.5,'#8b3a9655');
-    }
-    // Independent near/far stars move over the painted sky, giving it depth.
-    for(const s of this.stars){
-      const x=((s.x*w-cam.x*s.depth*.2+t*s.depth*.5)%(w+20)+w+20)%(w+20)-10;
-      const y=((s.y*h-cam.y*s.depth*.2+t*s.depth*.15)%(h+20)+h+20)%(h+20)-10;
-      ctx.globalAlpha=s.alpha*(.75+.25*Math.sin(t*.5+s.phase));circle(ctx,x,y,s.r*.85,s.depth>.45?'#defaff':'#a7b6eb');
-    }
-    ctx.globalAlpha=1;
-    if(!this.reduced){
-      const phase=t%17;
-      if(phase<.8){const x=w*.63+phase*260,y=h*.16+phase*90;const g=ctx.createLinearGradient(x-80,y-28,x,y);g.addColorStop(0,'#b5eeff00');g.addColorStop(1,'#d0f6ffb0');line(ctx,x-80,y-28,x,y,g,1);}
-    }
-  }
+  background(ctx,w,h,t,cam){this.sky.draw(ctx,w,h,t,cam);}
   drawTrail(ctx){
     if(this.trail.length<2)return;
     ctx.save();ctx.globalCompositeOperation='screen';ctx.lineCap='round';
     for(let i=1;i<this.trail.length;i++){
       const a=this.trail[i-1],b=this.trail[i],life=Math.max(0,1-(this.time-b.t)/1.1);
-      ctx.globalAlpha=life*.19;line(ctx,a.x,a.y,b.x,b.y,'#ffb36b',life*6+.4);
+      ctx.globalAlpha=life*.06;line(ctx,a.x,a.y,b.x,b.y,'#9ab5c7',life*2+.2);
     }ctx.restore();
   }
   worldGrid(ctx,t){
@@ -136,19 +117,17 @@ export class Renderer {
   }
   station(ctx,t,dock,carrying=false){
     drawStation(ctx,t);drawDock(ctx,dock,t,carrying);
-    // A distant broken freighter adds scale to the accident site.
-    ctx.save();ctx.translate(-420,-310);ctx.rotate(.42+Math.sin(t*.03)*.02);ctx.globalAlpha=.65;
-    rect(ctx,-108,-25,160,50,'#243c58','#6a839b');
-    for(let i=0;i<5;i++){rect(ctx,-99+i*28,-21,22,42,i%2?'#486d89':'#7b664e','#9eb8c044');line(ctx,-97+i*28,-18,-97+i*28,18,'#d7b58d44');}
-    rect(ctx,52,-16,43,32,'#526e89','#a4bec9');
-    ctx.beginPath();ctx.moveTo(95,-16);ctx.lineTo(120,-7);ctx.lineTo(110,16);ctx.lineTo(95,16);ctx.fillStyle='#8795a5';ctx.fill();
-    rect(ctx,-122,-17,12,34,'#45566b');rect(ctx,-123,-10,3,7,'#ef9e61');ctx.restore();
+    // An unpowered wreck uses the same material treatment as the working tug.
+    ctx.save();ctx.translate(-420,-310);ctx.rotate(.42+Math.sin(t*.03)*.02);
+    ctx.filter='grayscale(.7) brightness(.48)';
+    ctx.beginPath();ctx.moveTo(-108,-50);ctx.lineTo(52,-50);ctx.lineTo(64,-12);ctx.lineTo(49,8);ctx.lineTo(61,45);ctx.lineTo(-108,50);ctx.closePath();ctx.clip();
+    drawHardware(ctx,'ship',-108,-48,210,96);ctx.restore();
   }
   asteroid(ctx,a,t){drawAsteroid(ctx,a);}
   cargo(ctx,c,game,t,menu){
     const attached=game.attachedId===c.id,near=Math.hypot(c.x-game.ship.x,c.y-game.ship.y)<BEAM_RANGE;
     ctx.save();ctx.translate(c.x,c.y);
-    glow(ctx,0,0,65,c.color+'22');
+    glow(ctx,0,0,38,c.color+'08');
     if(!menu&&!attached){
       ctx.setLineDash([3,6]);line(ctx,0,0,c.vx*3,c.vy*3,c.color+'55');ctx.setLineDash([]);
       const endx=c.vx*3,endy=c.vy*3;if(length(c)>2){circle(ctx,endx,endy,2,null,c.color+'60');}
@@ -175,9 +154,10 @@ export class Renderer {
     const dx=c.x-s.x,dy=c.y-s.y,d=Math.hypot(dx,dy),nx=-dy/(d||1),ny=dx/(d||1);
     ctx.save();ctx.lineCap='round';
     for(const side of [-1,1]){
-      ctx.globalAlpha=.6;line(ctx,s.x+nx*side*8,s.y+ny*side*8,c.x+nx*side*8,c.y+ny*side*8,'#8ae5d5',2);
+      ctx.globalAlpha=1;line(ctx,s.x+nx*side*8,s.y+ny*side*8,c.x+nx*side*8,c.y+ny*side*8,'#1b242c',3.5);
+      line(ctx,s.x+nx*side*8,s.y+ny*side*8,c.x+nx*side*8,c.y+ny*side*8,'#9aa7a5',.8);
     }
-    ctx.globalAlpha=.12;line(ctx,s.x,s.y,c.x,c.y,'#8ae5d5',16);ctx.restore();
+    ctx.restore();
   }
   wind(ctx,game,t){
     const g=game.gust,cam=this.camera;ctx.save();ctx.strokeStyle=g.active?'#c5a9e74d':'#c5a9e71a';ctx.lineWidth=1;

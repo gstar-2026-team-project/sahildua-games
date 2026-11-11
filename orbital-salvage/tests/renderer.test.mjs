@@ -2,6 +2,28 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Renderer } from '../src/renderer.js';
 import { createGame, dockingZone, WORLD } from '../src/simulation.js';
+import { layerOffset, skyPlacement } from '../src/space-background.js';
+
+test('sky continues panning near sector edges and nearer layers travel farther', () => {
+  const start={x:WORLD.width/2-200,y:WORLD.height/2-200},end={x:start.x+150,y:start.y+150};
+  const farStart=skyPlacement(start,0,390,844,1672,941),farEnd=skyPlacement(end,0,390,844,1672,941);
+  const nearStart=layerOffset(start,0,.85),nearEnd=layerOffset(end,0,.85);
+  assert.ok(farEnd.x<farStart.x && farEnd.y<farStart.y,'far sky must not clamp mid-flight');
+  assert.ok(Math.abs(nearEnd.x-nearStart.x)>Math.abs(farEnd.x-farStart.x)*3,'dust must give a stronger motion cue');
+  const idle=layerOffset(start,10,.85,13);
+  assert.ok(Math.hypot(idle.x-nearStart.x,idle.y-nearStart.y)>100,'nearby particles must visibly drift when controls are idle');
+});
+
+test('painted sky covers every viewport at sector extremes without exposing an image edge', () => {
+  for(const [width,height] of [[1440,1000],[390,844],[844,390],[320,568]]){
+    for(const x of [-WORLD.width/2-80,WORLD.width/2+80])for(const y of [-WORLD.height/2-65,WORLD.height/2+65]){
+      for(const time of [0,35,105]){
+        const sky=skyPlacement({x,y},time,width,height,1672,941);
+        assert.ok(sky.x<=0 && sky.y<=0 && sky.x+sky.width>=width && sky.y+sky.height>=height);
+      }
+    }
+  }
+});
 
 function recordingContext() {
   const text = [], ellipses = [];
