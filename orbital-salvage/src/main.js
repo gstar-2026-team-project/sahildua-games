@@ -55,7 +55,7 @@ function show(next){
 function launch(id=selected,seed){
   if(id==='practice'&&seed===undefined&&!evaluationMode)seed=Math.floor(Math.random()*0x100000000);
   selected=MISSIONS.some(m=>m.id===id)?id:'first';game=createGame(selected,seed);acc=0;last=performance.now();resultShown=false;notifyUntil=0;
-  releaseInput();renderer.reset(game);audio.unlock();$('notification').classList.remove('visible');$('wind-banner').hidden=true;
+  releaseInput();renderer.reset(game);audio.unlock();audio.event('launch');$('notification').classList.remove('visible');$('wind-banner').hidden=true;
   $('cargo-total').textContent=` / ${game.mission.count}`;
   show('playing');updateHud();return observe(game);
 }
@@ -68,6 +68,7 @@ function closeManual(){show(beforeManual);last=performance.now();acc=0;lastFocus
 function notify(text,seconds=1.5){$('notification').textContent=text;$('notification').classList.add('visible');notifyUntil=renderer.time+seconds;}
 function results(){
   if(resultShown)return;resultShown=true;
+  updateHud();
   const complete=game.status==='complete',partial=game.delivered>0&&game.status==='timeout';
   $('result-eyebrow').textContent=complete?'CONTRACT FULFILLED':partial?'CONTRACT CLOSED':'FLIGHT REPORT / RETURN TO BASE';
   $('result-title').innerHTML=complete?'Good<br><em>haul.</em>':partial?'A little<br><em>goes far.</em>':game.status==='destroyed'?'Lost<br><em>contact.</em>':'Out of<br><em>time.</em>';
@@ -104,7 +105,7 @@ function updateHud(){
   $('dock-state').classList.toggle('too-fast',!safe);
   const near=nearestCargo(game),distance=near?Math.hypot(near.x-s.x,near.y-s.y):Infinity,linked=game.attachedId!==null,ready=distance<=BEAM_RANGE;
   const panel=$('beam-state').parentElement;panel.classList.toggle('ready',ready&&!linked);panel.classList.toggle('linked',linked);
-  $('beam-state').textContent=linked?'Cargo aboard · Fly home':ready?'Space · Pick up':'WASD fly · Space pick up';
+  $('beam-state').textContent=game.status==='complete'?'All cargo recovered':linked?'Cargo aboard · Fly home':ready?'Space · Pick up':'WASD fly · Space pick up';
   const g=game.gust;$('wind-banner').hidden=!(g.warning||g.active);
   if(g.warning||g.active){$('wind-title').textContent=g.active?'Solar wind':`Wind in ${Math.ceil(game.nextGust-game.elapsed)}s`;$('wind-arrow').style.transform=`rotate(${Math.atan2(g.y,g.x)*180/Math.PI+45}deg)`;}
 }
@@ -181,7 +182,9 @@ function frame(now){
     for(const a of game.asteroids){a.x+=a.vx*delta;a.y+=a.vy*delta;a.angle+=a.spin*delta;}
     for(const c of game.cargo){c.x+=c.vx*delta;c.y+=c.vy*delta;c.angle+=c.spin*delta;}
   }
-  const animated=screen==='playing'||screen==='menu';renderer.update(game,animated?delta:0,screen==='menu');renderer.render(game,screen==='menu',!animated);
+  const animated=screen==='playing'||screen==='menu';
+  const finishingEffects=screen==='result'&&renderer.effectsActive;
+  renderer.update(game,animated||finishingEffects?delta:0,screen==='menu');renderer.render(game,screen==='menu',!animated);
   if(notifyUntil&&renderer.time>notifyUntil){$('notification').classList.remove('visible');notifyUntil=0;}
   audio.update(game.ship.thrust,screen==='playing');
   requestAnimationFrame(frame);

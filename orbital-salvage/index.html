@@ -8,6 +8,7 @@
   <title>Orbital Salvage — Deep Space Recovery</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1524'/%3E%3Cpath d='M14 46 32 10 50 46 32 38Z' fill='%238be9dd'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="./style.css">
+  <link rel="preload" as="image" href="./assets/space-backdrop.png">
 </head>
 <body>
   <canvas id="space" aria-label="Orbital Salvage game world: ship, cargo, asteroids, and recovery station"></canvas>
@@ -29,8 +30,8 @@
     <section id="menu" class="menu-screen" aria-labelledby="game-title">
       <div class="menu-copy">
         <div class="eyebrow"><span class="tiny-line"></span> DEEP SPACE RECOVERY / VOL. 01</div>
-        <h1 id="game-title">Nothing<br>stays <em>still.</em></h1>
-        <p class="intro">A little ship. A lot of momentum.<br>Bring the scattered pieces home.</p>
+        <h1 id="game-title">ORBITAL<br><em>SALVAGE.</em></h1>
+        <p class="intro">Lost cargo. Open space. One little tug.<br>Go bring home a good haul.</p>
         <div class="mission-heading"><span>SELECT YOUR CONTRACT</span><span id="contract-range">01 — 04</span></div>
         <div id="mission-list" class="mission-list" role="group" aria-label="Choose a mission"></div>
         <button id="launch-button" class="launch-button"><span>Launch mission <span class="launch-arrow">↗</span></span><small>FIRST RECOVERY · 04:00</small></button>
@@ -38,7 +39,7 @@
       </div>
       <div class="world-callout" aria-hidden="true"><span class="crosshair">+</span><div>KEPLER RECOVERY STATION<small>SAFE HARBOR / SECTOR 07</small></div></div>
       <div class="menu-coordinate" aria-hidden="true">AEGIS ORBIT<br><span>03.72 AU / 087° E</span></div>
-      <div class="menu-footer"><span>TAKE YOUR TIME. MIND YOUR MOMENTUM.</span><span>PROCEDURAL SPACE · REAL-TIME PHYSICS</span></div>
+      <div class="menu-footer"><span>TAKE YOUR TIME. MIND YOUR MOMENTUM.</span><span>YOUR NEXT GREAT HAUL IS OUT THERE.</span></div>
     </section>
 
     <section id="flight-ui" hidden aria-label="Flight instruments">

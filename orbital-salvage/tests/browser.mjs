@@ -102,7 +102,7 @@ try{
     if(state.screen==='result')break;
   }
   after=await snapshot();assert.ok(sawLink&&sawRelease,'pickup/release should occur in actual flight');assert.equal(after.status,'complete',JSON.stringify({status:after.status,delivered:after.delivered,elapsed:after.elapsed,fuel:after.ship.fuel}));assert.equal(after.delivered,2);assert.equal(after.screen,'result');
-  await screenshot('05-complete');report.push('Basic thrust/turn inputs complete First Recovery; cargo stays fixed to the ship, and Space drops/reattaches it.');
+  await screenshot('05-delivery-effects');await delay(750);await screenshot('05-complete');report.push('Basic thrust/turn inputs complete First Recovery; cargo stays fixed to the ship, and Space drops/reattaches it.');
   await click('retry-button');assert.equal((await snapshot()).delivered,0);assert.equal((await snapshot()).score,0);
   await evaluate('window.orbitalSalvage.reset("storm")');await evaluate('window.__qaAdvance(13500)');assert.equal((await snapshot()).gust.warning,true);await evaluate('window.__qaAdvance(5100)');assert.equal((await snapshot()).gust.active,true);await screenshot('06-solar-wind');
   report.push('Advanced mission selection, solar-wind warning and active gust are visible and timed correctly.');

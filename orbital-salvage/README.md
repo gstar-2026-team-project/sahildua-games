@@ -3,7 +3,7 @@
 **A little ship. A lot of momentum. Bring the scattered pieces home.**
 
 A polished, top-down Canvas game with drifting cargo, simple rigid pickup,
-moving asteroids, solar-wind disturbances, procedural space artwork,
+moving asteroids, solar-wind disturbances, a colorful illustrated space backdrop,
 synthesized audio, and four replayable contracts. The simulation always advances
 while a mission is playing, including when no controls are held.
 
@@ -24,8 +24,12 @@ keeps the clock running across focus/visibility changes and disables pause and
 the in-flight manual. Held agent controls persist while the page is hidden.
 Evaluation results do not change human personal records.
 
-All artwork is generated in Canvas. Fonts are included locally with their SIL
-Open Font License notices. Audio is synthesized with Web Audio and starts muted;
+Foreground artwork is generated in Canvas: a detailed tug, rotating station,
+illuminated cargo, textured asteroids, engine trails and pickup/delivery effects.
+The locally bundled illustrated nebula backdrop was made with the built-in image
+generation tool; its prompt is recorded in `assets/art-direction.md`. No live
+image service is used. Fonts are included locally with their SIL Open Font
+License notices. Audio is synthesized with Web Audio and starts muted;
 use the speaker button or M to enable it. Personal records and mute preferences
 are stored locally, with graceful fallback when browser storage is unavailable.
 
@@ -91,10 +95,12 @@ does not stop drifting, steering, tractor use, or a possible coasting recovery.
 
 ```text
 src/simulation.js   Dependency-free deterministic physics, missions, scoring
-src/renderer.js     Canvas scene, camera, procedural art, particles, minimap
+src/renderer.js     Canvas scene, camera, trails, particles, minimap
+src/art.js          Procedural ship, station, cargo, asteroid and docking artwork
 src/main.js         Real-time loop, keyboard/touch input, HUD, menus, records
 src/evaluation.js   Paused/latency-injection episodes and exact-state diagnostic pilot
 src/audio.js        Optional synthesized sound effects
+assets/            Illustrated space backdrop and its art direction
 assets/fonts/      Local fonts and license notices
 scripts/           Static development server and build copier
 tests/             Simulation tests and real-browser smoke tests

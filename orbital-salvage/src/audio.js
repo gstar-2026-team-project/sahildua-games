@@ -19,7 +19,8 @@ export class AudioEngine {
     osc.type=type;osc.frequency.setValueAtTime(freq,t);osc.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq),t+duration);gain.gain.setValueAtTime(0,t);gain.gain.linearRampToValueAtTime(volume,t+.01);gain.gain.exponentialRampToValueAtTime(.0001,t+duration);osc.connect(gain);gain.connect(ctx.destination);osc.start(t);osc.stop(t+duration+.03);
   }
   event(type){
-    if(type==='attach'){this.tone(220,.2,'sine',.07,0,660);this.tone(440,.15,'sine',.025,.08,880);}
+    if(type==='launch'){this.tone(130,.35,'triangle',.035,0,260);this.tone(392,.2,'sine',.025,.18,523);}
+    else if(type==='attach'){this.tone(220,.2,'sine',.07,0,660);this.tone(440,.15,'sine',.025,.08,880);}
     else if(type==='release'||type==='snap')this.tone(440,.17,'sine',.04,0,140);
     else if(type==='delivery'){[523,659,784,1047].forEach((f,i)=>this.tone(f,.24,'sine',.05,i*.08));}
     else if(type==='collision')this.tone(95,.17,'triangle',.11,0,28);
