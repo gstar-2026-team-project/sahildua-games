@@ -142,7 +142,7 @@ export class Renderer {
     rect(ctx,-4,-3,8,6,'#182d37');rect(ctx,-2,-1,4,2,'#b3f3cf');ctx.restore();
     if(!attached){ctx.textAlign='center';ctx.font='10px "DM Sans",sans-serif';ctx.fillStyle='#a9bdc7';ctx.fillText(String(c.id).padStart(2,'0'),0,-40);}
     const dock=dockingZone(game);
-    if(Math.hypot(c.x-dock.x,c.y-dock.y)<dock.radius+35&&length(c)>=dock.speed){ctx.fillStyle='#eeb576';ctx.font='10px "DM Sans",sans-serif';ctx.fillText('S · Brake',0,43);}
+    if(Math.hypot(c.x-dock.x,c.y-dock.y)<dock.radius+35&&length(c)>=dock.speed){ctx.fillStyle='#eeb576';ctx.font='10px "DM Sans",sans-serif';ctx.fillText(`Slow down · below ${dock.speed} m/s`,0,43);}
     ctx.restore();
   }
   ship(ctx,s,t){
@@ -205,7 +205,10 @@ export class Renderer {
     for(let i=1;i<4;i++){line(ctx,w*i/4,0,w*i/4,h,'#759db51a');line(ctx,0,h*i/4,w,h*i/4,'#759db51a');}
     const point=b=>[w/2+b.x*sx,h/2+b.y*sy];
     for(const a of game.asteroids){const[x,y]=point(a);circle(ctx,x,y,2,'#8495ad9c');}
-    circle(ctx,w/2,h/2,6,'#8ae5d51a','#8ae5d5');circle(ctx,w/2,h/2,2,'#8ae5d5');
+    circle(ctx,w/2,h/2,3,'#8495ad9c');
+    const dock=dockingZone(game),[homeX,homeY]=point(dock);
+    ctx.beginPath();ctx.ellipse(homeX,homeY,dock.radius*sx,dock.radius*sy,0,0,TAU);ctx.fillStyle='#8ae5d51a';ctx.fill();ctx.strokeStyle='#8ae5d5';ctx.stroke();
+    circle(ctx,homeX,homeY,2,'#8ae5d5');
     for(const c of game.cargo)if(!c.delivered){const[x,y]=point(c);rect(ctx,x-3,y-3,6,6,c.color,'#e8eee766');if(c.id===game.attachedId)circle(ctx,x,y,7,null,'#8ae5d5');}
     const s=game.ship,[x,y]=point(s);ctx.save();ctx.translate(x,y);ctx.rotate(s.angle);ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(-4.5,-4);ctx.lineTo(-3,0);ctx.lineTo(-4.5,4);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.restore();
     const cam=this.camera;ctx.strokeStyle='#8ae5d55c';ctx.strokeRect(w/2+(cam.x-this.width/cam.zoom/2)*sx,h/2+(cam.y-this.height/cam.zoom/2)*sy,this.width/cam.zoom*sx,this.height/cam.zoom*sy);

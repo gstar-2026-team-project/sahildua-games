@@ -51,3 +51,38 @@ body:not([data-screen="menu"]) .brand small,body:not([data-screen="menu"]) .top-
   .wind-banner{top:142px;left:16px;padding:7px 10px}
   .notification{top:auto;bottom:143px;left:50%;width:max-content;max-width:calc(100vw - 32px)}
 }
+
+/* Keep every contract and the launch button reachable on short screens. */
+.menu-screen{overflow-y:auto;overscroll-behavior:contain;pointer-events:auto;scrollbar-width:thin}
+.menu-copy{position:relative;top:auto;left:auto;margin:clamp(24px,6.8vh,68px) 0 80px 7.1%}
+.world-callout,.menu-coordinate,.menu-footer{pointer-events:none}
+.flight-telemetry{position:absolute;top:160px;left:24px;display:flex;gap:14px;align-items:center;padding:7px 11px;background:#0a1525c9;border-radius:4px;font-size:11px;color:#a8bfc7}
+#result-route{font-size:10px;color:#8fa8b9;margin:8px 0 0}
+#speed-value{font-variant-numeric:tabular-nums;color:var(--text)}
+#dock-state{color:var(--cyan)}
+#dock-state.too-fast{color:var(--orange)}
+.wind-banner{top:204px}
+.modal-backdrop{align-items:safe center}
+.modal{flex-shrink:0;margin-block:auto}
+@media(max-width:1050px){.menu-copy{margin-left:6%}}
+@media(max-width:760px){
+  .menu-copy{margin-left:25px}
+  .flight-telemetry{top:140px;left:16px;right:16px;gap:10px;font-size:10px;padding:7px 9px}
+  .wind-banner{top:181px}
+}
+@media(max-height:780px){
+  .menu-footer{display:none}
+  .menu-copy{margin-top:24px;margin-bottom:40px}
+}
+@media(max-height:500px){
+  .menu-copy{width:min(350px,calc(100vw - 50px))}
+  .menu-copy h1{font-size:48px;margin:16px 0}
+  .menu-copy .intro{font-size:12px;margin-bottom:18px}
+  .world-callout,.menu-coordinate{display:none}
+  .radar-panel{width:158px;padding:6px}
+  .radar-panel canvas{width:144px;height:107px}
+  .touch-controls{position:absolute;bottom:16px;left:20px;right:auto;display:flex;gap:8px}
+  .touch-controls button{touch-action:none;width:45px;height:45px;background:#112738d9;border:1px solid #8ab8c447;border-radius:6px;color:var(--cyan);font-size:23px;user-select:none}
+  .touch-controls button:last-child{background:#21473f}
+  .flight-bottom{left:20px;right:auto;bottom:83px;transform:none}
+}

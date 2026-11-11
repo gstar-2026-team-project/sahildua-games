@@ -9,7 +9,8 @@
     "start": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/serve.mjs --dist",
-    "test": "node --test tests/simulation.test.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "evaluate": "node scripts/evaluate.mjs",
     "test:browser": "node tests/browser.mjs"
   },
   "engines": { "node": ">=22" }

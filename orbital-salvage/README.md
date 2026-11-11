@@ -4,7 +4,7 @@
 
 A polished, top-down Canvas game with drifting cargo, simple rigid pickup,
 moving asteroids, solar-wind disturbances, procedural space artwork,
-synthesized audio, and three replayable contracts. The simulation always advances
+synthesized audio, and four replayable contracts. The simulation always advances
 while a mission is playing, including when no controls are held.
 
 ## Run locally
@@ -18,6 +18,11 @@ npm run dev
 Open **http://127.0.0.1:5173**. Set `PORT=8080` to select another port. Keep the
 page focused: changing tabs or losing window focus automatically pauses for
 human play. Resume with the button, P, or Escape.
+
+For agent evaluation, open **http://127.0.0.1:5173/?evaluation=1**. This mode
+keeps the clock running across focus/visibility changes and disables pause and
+the in-flight manual. Held agent controls persist while the page is hidden.
+Evaluation results do not change human personal records.
 
 All artwork is generated in Canvas. Fonts are included locally with their SIL
 Open Font License notices. Audio is synthesized with Web Audio and starts muted;
@@ -48,20 +53,28 @@ handling stays the same with a load. Dropped cargo inherits the ship's drift.
 
 **Docking:** fly the ship or its carried container into the cyan home circle.
 Unloading is automatic; you do not need to release cargo. First Recovery accepts
-the ship at its full speed in a generous 165 m zone. Later missions use a 145 m
+the ship at its full speed in a generous 165 m zone, as does Open Recovery. Later missions use a 145 m
 zone and ask you to brake below 120 m/s. The station has a clear approach.
 
-During flight, the interface shows only compact cargo/time/fuel/hull readings,
-a larger, high-resolution sector map, and a short pickup-or-return prompt. Detailed help is available
+During flight, the interface shows compact cargo/time/fuel/hull readings,
+speed and docking-speed readiness, a sector map including the actual recovery
+field, and a short pickup-or-return prompt. Detailed help is available
 on demand with H or the question-mark button.
 
 ## Contracts and scoring
 
 | Contract | Cargo | Limit | Conditions |
 | --- | --- | --- | --- |
-| First Recovery | 2 | 4:00 | Nearby, slowly drifting cargo; three distant asteroids; generous fuel |
+| First Recovery | 2 | 4:00 | Fixed tutorial route; slowly drifting cargo; three distant asteroids; generous fuel |
+| Open Recovery | 2 | 4:00 | Seeded nearby routes; the tutorial's generous docking, fuel and distant asteroids |
 | Debris Field | 3 | 2:45 | More debris, tighter fuel budget |
 | Solar Storm | 4 | 3:00 | Heavy cargo and periodic directional gusts |
+
+Open Recovery chooses a new seed on each launch during human play. The result
+screen includes the route seed. To replay a particular route, call
+`window.orbitalSalvage.reset('practice', 42)`. Explicit seeds reproduce all initial
+conditions. Evaluation mode uses a fixed default seed unless one is supplied.
+First Recovery stays fixed across seeds for learning the controls.
 
 Solar wind is announced five seconds before a seven-second gust. Future gusts
 follow deterministically; they affect the tug, cargo, and asteroids. Unrecovered
@@ -80,13 +93,20 @@ does not stop drifting, steering, tractor use, or a possible coasting recovery.
 src/simulation.js   Dependency-free deterministic physics, missions, scoring
 src/renderer.js     Canvas scene, camera, procedural art, particles, minimap
 src/main.js         Real-time loop, keyboard/touch input, HUD, menus, records
+src/evaluation.js   Paused/latency-injection episodes and exact-state diagnostic pilot
 src/audio.js        Optional synthesized sound effects
 assets/fonts/      Local fonts and license notices
 scripts/           Static development server and build copier
 tests/             Simulation tests and real-browser smoke tests
 ```
 
-Physics runs at a fixed **120 Hz**, with a bounded animation-frame accumulator.
+Physics runs at a fixed **120 Hz**. Slow frames retain all elapsed simulation
+time; only visual effects cap their frame delta. Input changes and observations
+first catch up the simulation using the previous held controls, to within one
+physics tick. Evaluation mode also runs a background timer. Browsers can throttle
+or suspend background work; on the next timer, frame, observation or action, the
+game catches up before accepting new controls. For reproducible training and
+evaluation independent of browser scheduling, use the headless runner below.
 Visual particles and sound do not affect the deterministic simulation. The
 world is 3,000 × 2,200 units; sector edges softly reflect objects. The flight
 model is arcade Newtonian motion, not gravitational orbital mechanics.
@@ -117,6 +137,44 @@ separately from screenshot-only play. The controller has no clock-stepping
 operation; the world runs in real time. For headless deterministic evaluation,
 import `createGame`, `stepGame`, `toggleBeam`, `observe`, and `DT` directly from
 `src/simulation.js`. The unit tests include a physical-control baseline.
+
+## Small evaluation runner
+
+Run the same seeded routes with paused inference and injected latency:
+
+```sh
+npm run evaluate -- --mission practice --seeds 1,2,3 --latency-ms 500 --interval-ms 120
+```
+
+This runs a **scripted exact-state diagnostic pilot**, not an LLM or human.
+It uses discrete turn/thrust controls, the same seeds and observation fields
+for each pair, and identical 120 Hz physics. The JSON report at
+`test-results/evaluation.json` includes initial/final states, outcome, score,
+observation/action wall timestamps, measured versus charged latency, previous
+held controls, incoming actions, their application times and simulation events.
+Use `--out path.json` to keep multiple reports. Injected latency is simulated
+without waiting; the report labels it as latency injection rather than wall-clock
+play. Paused mode excludes inference time but still advances each action's
+`--interval-ms` hold duration.
+
+For an asynchronous controller, import `runEpisode` from `src/evaluation.js`
+and pass `decide: async observation => action`. With `mode: 'latency'` and no
+`latencyMs`, measured inference time is charged to the previous held action
+before applying the returned action. With `mode: 'paused'`, inference time is
+free. Actions arriving after termination are logged and discarded. The runner
+uses privileged state; compare pixel/keyboard agents in a separate lane. This
+runner is intended for serial decisions; it does not implement concurrent
+streaming observations or overlapping model requests.
+
+### Human playtest before model comparisons
+
+Human difficulty has not yet been established. Give several players one
+unscored First Recovery attempt to learn the controls, then Open Recovery on
+the same explicit seeds, viewport and keyboard interface. Record success,
+delivered cargo, score, mission time, retries, pause/manual use, and feedback
+about steering and docking. Use the result screen's seed to reproduce failures;
+do not compare paused human attempts with uninterrupted live agents. Freeze the
+evaluated seeds and settings before collecting comparative results.
 
 ## Verification
 

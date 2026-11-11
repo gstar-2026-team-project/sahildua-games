@@ -3,11 +3,12 @@ export const WORLD = { width: 3000, height: 2200 };
 export const DOCK = { x: 172, y: 0, radius: 145, speed: 120 };
 export const BEAM_RANGE = 175;
 export const CARGO_OFFSET = 43;
-export const dockingZone = game => ({ ...DOCK, ...(game.mission.id === 'first' ? { radius: 165, speed: 200 } : {}) });
+export const dockingZone = game => ({ ...DOCK, ...(game.mission.easy ? { radius: 165, speed: 200 } : {}) });
 export const MISSIONS = [
-  { id: 'first', name: 'First Recovery', label: '01', difficulty: 'EASY', time: 240, fuel: 240, count: 2, asteroids: 3, wind: false, seed: 3181, description: 'Two nearby containers. Plenty of time. Pick up and fly home.', objective: 'Recover both containers', color: '#79dfd0' },
-  { id: 'debris', name: 'Debris Field', label: '02', difficulty: 'INTERMEDIATE', time: 165, fuel: 112, count: 3, asteroids: 11, wind: false, seed: 9012, description: 'A fractured shipping lane. Three moving targets. Pick your approach.', objective: 'Recover as much cargo as possible', color: '#e5bb80' },
-  { id: 'storm', name: 'Solar Storm', label: '03', difficulty: 'ADVANCED', time: 180, fuel: 105, count: 4, asteroids: 13, wind: true, seed: 7448, description: 'Heavy freight and shifting solar winds. Leave fuel for the journey home.', objective: 'Maximize your salvage score', color: '#ae9aec' },
+  { id: 'first', name: 'First Recovery', label: '01', difficulty: 'TUTORIAL', easy: true, time: 240, fuel: 240, count: 2, asteroids: 3, wind: false, seed: 3181, description: 'A fixed introductory route. Pick up two nearby containers and fly home.', objective: 'Recover both containers', color: '#79dfd0' },
+  { id: 'practice', name: 'Open Recovery', label: '02', difficulty: 'EASY', easy: true, time: 240, fuel: 240, count: 2, asteroids: 3, wind: false, seed: 1827, description: 'Nearby containers on a seeded route. Generous docking and fuel.', objective: 'Recover both containers', color: '#79dfd0' },
+  { id: 'debris', name: 'Debris Field', label: '03', difficulty: 'INTERMEDIATE', time: 165, fuel: 112, count: 3, asteroids: 11, wind: false, seed: 9012, description: 'A fractured shipping lane. Three moving targets. Pick your approach.', objective: 'Recover as much cargo as possible', color: '#e5bb80' },
+  { id: 'storm', name: 'Solar Storm', label: '04', difficulty: 'ADVANCED', time: 180, fuel: 105, count: 4, asteroids: 13, wind: true, seed: 7448, description: 'Heavy freight and shifting solar winds. Leave fuel for the journey home.', objective: 'Maximize your salvage score', color: '#ae9aec' },
 ];
 export const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 export const length = (v) => Math.hypot(v.vx, v.vy);
@@ -17,23 +18,35 @@ export function rng(seed) {
 export function createGame(missionId = 'first', seed) {
   const mission = MISSIONS.find(m => m.id === missionId) || MISSIONS[0];
   const random = rng(seed ?? mission.seed);
+  const dock = dockingZone({ mission });
   const cargo = Array.from({ length: mission.count }, (_, i) => {
     const angles = [-0.35, 2.55, 1.02, -2.15];
     const a = angles[i] + (random() - 0.5) * 0.22;
     const distance = 590 + i * 100;
     const container = { id: i + 1, x: Math.cos(a) * distance, y: Math.sin(a) * distance, vx: (random() - 0.5) * 15, vy: (random() - 0.5) * 15, angle: random() * 6.28, spin: (random() - 0.5) * 0.3, radius: 19, mass: mission.wind ? 2 + i * 0.6 : 1.25 + i * 0.5, value: 500 + i * 150, color: ['#e9ae6b', '#9f91ea', '#7bd5bc', '#e37b92'][i], delivered: false, health: 100 };
     if (mission.id === 'first') Object.assign(container, i === 0 ? { x: 550, y: 30, vx: 1.5, vy: -0.75 } : { x: 400, y: -300, vx: -0.9, vy: 1.1 });
+    if (mission.id === 'practice') {
+      // Keep both recoveries outside home; a randomized route must not award
+      // an automatic delivery just because a container spawned in the field.
+      do {
+        const angle = (i === 0 ? -0.25 : -1.9) + (random() - 0.5) * 1.2;
+        const distance = 260 + random() * 180;
+        container.x = 310 + Math.cos(angle) * distance;
+        container.y = 75 + Math.sin(angle) * distance;
+      } while (Math.hypot(container.x - dock.x, container.y - dock.y) < dock.radius + 100);
+      container.vx = (random() - 0.5) * 4; container.vy = (random() - 0.5) * 4;
+    }
     return container;
   });
   const asteroids = Array.from({ length: mission.asteroids }, (_, i) => {
     let x, y;
     do { x = (random() - 0.5) * 2650; y = (random() - 0.5) * 1850; }
-    while (Math.hypot(x, y) < (mission.id === 'first' ? 750 : 420) || cargo.some(c => Math.hypot(c.x - x, c.y - y) < 150));
-    return { id: i, x, y, vx: (random() - 0.5) * (mission.id === 'first' ? 10 : 42), vy: (random() - 0.5) * (mission.id === 'first' ? 10 : 32), angle: random() * 6.28, spin: (random() - 0.5) * 0.2, radius: 25 + random() * 29, mass: 7, shape: Array.from({ length: 10 }, () => 0.78 + random() * 0.28), shade: random() };
+    while (Math.hypot(x, y) < (mission.easy ? 750 : 420) || cargo.some(c => Math.hypot(c.x - x, c.y - y) < 150));
+    return { id: i, x, y, vx: (random() - 0.5) * (mission.easy ? 10 : 42), vy: (random() - 0.5) * (mission.easy ? 10 : 32), angle: random() * 6.28, spin: (random() - 0.5) * 0.2, radius: 25 + random() * 29, mass: 7, shape: Array.from({ length: 10 }, () => 0.78 + random() * 0.28), shade: random() };
   });
   return {
     mission, seed: seed ?? mission.seed, elapsed: 0, status: 'playing', score: 0, delivered: 0,
-    ship: { x: 310, y: 75, vx: 0, vy: 0, angle: mission.id === 'first' ? Math.atan2(cargo[0].y-75,cargo[0].x-310) : -0.48, omega: 0, radius: 16, mass: 1.8, fuel: mission.fuel, integrity: 100, thrust: 0, hitCooldown: 0 },
+    ship: { x: 310, y: 75, vx: 0, vy: 0, angle: mission.easy ? Math.atan2(cargo[0].y-75,cargo[0].x-310) : -0.48, omega: 0, radius: 16, mass: 1.8, fuel: mission.fuel, integrity: 100, thrust: 0, hitCooldown: 0 },
     cargo, asteroids, attachedId: null, events: [], nextGust: mission.wind ? 18 : Infinity,
     gust: { active: false, warning: false, x: 0, y: 0, remaining: 0, index: 0 }, fuelWarning: false, bonus: 0,
   };
@@ -146,7 +159,7 @@ export function stepGame(game, input = {}, dt = DT) {
   }
   const cargo = game.cargo.filter(c => !c.delivered);
   const attached = cargo.find(c => c.id === game.attachedId);
-  capSpeed(s, game.mission.id === 'first' ? 180 : 220);
+  capSpeed(s, game.mission.easy ? 180 : 220);
   integrate(s, dt, 0.1);
   if (attached) syncCargo(s, attached);
   for (const c of cargo) {

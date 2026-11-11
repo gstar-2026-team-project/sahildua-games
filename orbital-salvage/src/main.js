@@ -1,4 +1,4 @@
-import { createGame, stepGame, toggleBeam, nearestCargo, observe, clamp, MISSIONS, BEAM_RANGE, DT } from './simulation.js';
+import { createGame, stepGame, toggleBeam, nearestCargo, observe, clamp, dockingZone, length, MISSIONS, BEAM_RANGE, DT } from './simulation.js';
 import { Renderer } from './renderer.js';
 import { AudioEngine } from './audio.js';
 
@@ -6,8 +6,10 @@ const $=id=>document.getElementById(id);
 const renderer=new Renderer($('space'),$('radar'));
 const audio=new AudioEngine();
 const keys=new Set();
+const evaluationMode=new URLSearchParams(location.search).get('evaluation')==='1';
 let selected='first',game=createGame(selected),screen='menu',beforeManual='menu';
 let agentAction={turn:0,thrust:0},agentEnabled=false,acc=0,last=performance.now(),notifyUntil=0,resultShown=false;
+let lastVisual=last;
 let hudTimer=0,lastFocus=null;
 const clock=seconds=>`${String(Math.floor(Math.max(0,seconds)/60)).padStart(2,'0')}:${String(Math.floor(Math.max(0,seconds)%60)).padStart(2,'0')}`;
 const format=n=>Math.round(n).toLocaleString('en-US');
@@ -23,6 +25,7 @@ function selectMission(id){
   if(screen==='menu'){game=createGame(id);renderer.reset(game,true);}
 }
 function renderMissions(){
+  $('contract-range').textContent=`01 — ${String(MISSIONS.length).padStart(2,'0')}`;
   $('mission-list').replaceChildren(...MISSIONS.map(m=>{
     const button=document.createElement('button');button.className='mission-card';button.dataset.mission=m.id;button.setAttribute('aria-pressed',String(m.id===selected));button.setAttribute('aria-label',`${m.name}. ${m.difficulty}. ${m.description}`);
     const number=document.createElement('span');number.className='mission-number';number.textContent=m.label;
@@ -39,24 +42,27 @@ function show(next){
   document.body.dataset.screen=next;
   $('menu').hidden=next!=='menu';$('flight-ui').hidden=next==='menu';
   $('pause-screen').hidden=next!=='paused';$('result-screen').hidden=next!=='result';$('manual-screen').hidden=next!=='manual';
-  $('pause-button').hidden=!['playing','paused'].includes(next);
+  $('pause-button').hidden=evaluationMode||!['playing','paused'].includes(next);
+  $('help-button').hidden=evaluationMode&&next==='playing';
   $('pause-button').textContent=next==='paused'?'▷':'Ⅱ';$('pause-button').setAttribute('aria-label',next==='paused'?'Resume mission':'Pause mission');
   $('top-status-text').textContent=next==='menu'?'AEGIS SECTOR · LINK ESTABLISHED':next==='playing'?'TELEMETRY LIVE · AEGIS SECTOR':'TELEMETRY HOLD · AEGIS SECTOR';
   if(next!=='playing')releaseInput();
+  if(next==='playing')document.activeElement?.blur();
   if(next==='paused')$('resume-button').focus();
   else if(next==='result')$('retry-button').focus();
   else if(next==='menu')$('launch-button').focus({preventScroll:true});
 }
 function launch(id=selected,seed){
+  if(id==='practice'&&seed===undefined&&!evaluationMode)seed=Math.floor(Math.random()*0x100000000);
   selected=MISSIONS.some(m=>m.id===id)?id:'first';game=createGame(selected,seed);acc=0;last=performance.now();resultShown=false;notifyUntil=0;
   releaseInput();renderer.reset(game);audio.unlock();$('notification').classList.remove('visible');$('wind-banner').hidden=true;
   $('cargo-total').textContent=` / ${game.mission.count}`;
   show('playing');updateHud();return observe(game);
 }
 function toMenu(){show('menu');game=createGame(selected);renderer.reset(game,true);renderMissions();}
-function pause(){if(screen==='playing'){show('paused');audio.update(0,false);}else if(screen==='paused'){last=performance.now();acc=0;show('playing');}}
+function pause(){if(evaluationMode)return;if(screen==='playing'){advanceSimulation();if(screen!=='playing')return;show('paused');audio.update(0,false);}else if(screen==='paused'){last=performance.now();acc=0;show('playing');}}
 function openManual(){
-  if(screen==='manual')return;beforeManual=screen;lastFocus=document.activeElement;show('manual');$('close-manual').focus();audio.update(0,false);
+  if(screen==='manual'||(evaluationMode&&screen==='playing'))return;advanceSimulation();beforeManual=screen;lastFocus=document.activeElement;show('manual');$('close-manual').focus();audio.update(0,false);
 }
 function closeManual(){show(beforeManual);last=performance.now();acc=0;lastFocus?.focus();}
 function notify(text,seconds=1.5){$('notification').textContent=text;$('notification').classList.add('visible');notifyUntil=renderer.time+seconds;}
@@ -69,11 +75,12 @@ function results(){
   $('result-score').textContent=format(game.score);const unit=document.createElement('small');unit.textContent=' CR';$('result-score').append(unit);
   $('result-cargo').textContent=`${String(game.delivered).padStart(2,'0')} / ${String(game.mission.count).padStart(2,'0')}`;
   $('result-fuel').textContent=`${Math.round(game.ship.fuel/game.mission.fuel*100)}%`;$('result-time').textContent=clock(game.elapsed);
-  const best=Number(records[selected])||0,isBest=game.score>best;
+  $('result-route').textContent=`${game.mission.name} · route seed ${game.seed}`;
+  const best=Number(records[selected])||0,isBest=!evaluationMode&&game.score>best;
   if(isBest){records[selected]=game.score;try{localStorage.setItem('orbital-salvage-records-v1',JSON.stringify(records));}catch{}}
-  $('best-label').textContent=isBest?'✧ NEW PERSONAL BEST':best?`PERSONAL BEST / ${format(best)} CR`:'YOUR NEXT CONTRACT IS WAITING';
+  $('best-label').textContent=evaluationMode?'EVALUATION RUN':isBest?'✧ NEW PERSONAL BEST':best?`PERSONAL BEST / ${format(best)} CR`:'YOUR NEXT CONTRACT IS WAITING';
   $('result-bonus').textContent=complete?`+${format(game.bonus)} CR · completion, time & efficiency bonus`:game.delivered? 'Delivered cargo remains credited.':'Tip: use short thrusts and leave room to slow down.';
-  $('next-mission').hidden=selected==='storm';show('result');
+  $('next-mission').hidden=selected===MISSIONS.at(-1).id;show('result');
 }
 function handleEvents(){
   for(const e of game.events){
@@ -91,6 +98,10 @@ function updateHud(){
   $('time-value').textContent=clock(Math.ceil(remaining));$('time-value').parentElement.classList.toggle('low',remaining<30);
   $('fuel-value').textContent=`${Math.ceil(fuel)}%`;$('fuel-fill').style.width=fuel+'%';$('fuel-fill').style.background=fuel<20?'#eeb576':'';
   $('hull-value').textContent=`${Math.ceil(s.integrity)}%`;$('hull-fill').style.width=s.integrity+'%';$('hull-fill').style.background=s.integrity<35?'#e78880':'';
+  const speed=length(s),dock=dockingZone(game),safe=speed<dock.speed;
+  $('speed-value').textContent=`${Math.floor(speed)} m/s`;
+  $('dock-state').textContent=safe?`Dock ready · below ${dock.speed} m/s`:`Slow down · below ${dock.speed} m/s to dock`;
+  $('dock-state').classList.toggle('too-fast',!safe);
   const near=nearestCargo(game),distance=near?Math.hypot(near.x-s.x,near.y-s.y):Infinity,linked=game.attachedId!==null,ready=distance<=BEAM_RANGE;
   const panel=$('beam-state').parentElement;panel.classList.toggle('ready',ready&&!linked);panel.classList.toggle('linked',linked);
   $('beam-state').textContent=linked?'Cargo aboard · Fly home':ready?'Space · Pick up':'WASD fly · Space pick up';
@@ -103,8 +114,11 @@ function keyboardInput(){
 }
 const mappings={KeyW:'forward',ArrowUp:'forward',KeyS:'reverse',ArrowDown:'reverse',KeyA:'left',ArrowLeft:'left',KeyD:'right',ArrowRight:'right'};
 window.addEventListener('keydown',event=>{
-  if(mappings[event.code]||['Space','Escape','KeyP','KeyR'].includes(event.code))event.preventDefault();
+  const buttonTarget=event.target instanceof Element&&!!event.target.closest('button,a,input,textarea,select');
+  if(event.code==='Space'&&buttonTarget)return;
+  if((screen==='playing'&&(mappings[event.code]||event.code==='Space'))||['Escape','KeyP','KeyR'].includes(event.code))event.preventDefault();
   audio.unlock();
+  advanceSimulation();
   if(mappings[event.code]){if(screen==='playing'){keys.add(event.code);agentEnabled=false;}return;}
   if(event.repeat)return;
   if(event.code==='Space'){if(screen==='playing'){toggleBeam(game);handleEvents();}else if(screen==='menu'&&event.target===document.body)launch();}
@@ -113,25 +127,25 @@ window.addEventListener('keydown',event=>{
   else if(event.code==='KeyM')toggleSound();
   else if(event.code==='KeyH')screen==='manual'?closeManual():openManual();
 });
-window.addEventListener('keyup',e=>{if(mappings[e.code])keys.delete(e.code);});
-window.addEventListener('blur',()=>{releaseInput();if(screen==='playing')pause();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&screen==='playing')pause();});
+window.addEventListener('keyup',e=>{if(mappings[e.code]){advanceSimulation();keys.delete(e.code);}});
+window.addEventListener('blur',()=>{if(evaluationMode){advanceSimulation();keys.clear();}else{pause();releaseInput();}});
+document.addEventListener('visibilitychange',()=>{if(evaluationMode)advanceSimulation();else if(document.hidden&&screen==='playing')pause();});
 window.addEventListener('resize',()=>renderer.resize());
 function toggleSound(){audio.setMuted(!audio.muted);soundButton();try{localStorage.setItem('orbital-salvage-muted',String(audio.muted));}catch{}}
 $('sound-button').addEventListener('click',toggleSound);
 $('launch-button').addEventListener('click',()=>launch());$('pause-button').addEventListener('click',pause);$('resume-button').addEventListener('click',pause);
 $('retry-button').addEventListener('click',()=>launch());$('restart-paused').addEventListener('click',()=>launch());
 $('exit-paused').addEventListener('click',toMenu);$('result-menu').addEventListener('click',toMenu);
-$('next-mission').addEventListener('click',()=>launch(MISSIONS[Math.min(2,MISSIONS.findIndex(m=>m.id===selected)+1)].id));
+$('next-mission').addEventListener('click',()=>launch(MISSIONS[Math.min(MISSIONS.length-1,MISSIONS.findIndex(m=>m.id===selected)+1)].id));
 $('brand').addEventListener('click',e=>{e.preventDefault();if(screen==='playing')pause();else toMenu();});
 for(const id of ['help-button','manual-link'])$(id).addEventListener('click',openManual);
 for(const id of ['close-manual','manual-ready'])$(id).addEventListener('click',closeManual);
 document.querySelectorAll('[data-control]').forEach(button=>{
   const control=button.dataset.control;
-  button.addEventListener('pointerdown',e=>{if(screen!=='playing')return;e.preventDefault();button.setPointerCapture(e.pointerId);keys.add(control);agentEnabled=false;audio.unlock();});
-  for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,()=>keys.delete(control));
+  button.addEventListener('pointerdown',e=>{if(screen!=='playing')return;e.preventDefault();advanceSimulation();button.setPointerCapture(e.pointerId);keys.add(control);agentEnabled=false;audio.unlock();});
+  for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,()=>{advanceSimulation();keys.delete(control);});
 });
-$('touch-beam').addEventListener('click',()=>{if(screen==='playing'){toggleBeam(game);handleEvents();}});
+$('touch-beam').addEventListener('click',()=>{advanceSimulation();if(screen==='playing'){toggleBeam(game);handleEvents();}});
 // Keep keyboard focus inside modal dialogs without trapping normal flight input.
 document.addEventListener('keydown',e=>{
   if(e.key!=='Tab')return;
@@ -143,20 +157,26 @@ document.addEventListener('keydown',e=>{
 // An optional controller seam; no learning, networking, or training machinery.
 // act() sets held analog controls. Tractor is an edge action, never auto-repeated.
 window.orbitalSalvage=Object.freeze({
-  version:1,
-  observe:()=>({...observe(game),screen}),
-  act(action={}){if(screen!=='playing')return;agentEnabled=true;agentAction={turn:clamp(Number(action.turn)||0,-1,1),thrust:clamp(Number(action.thrust)||0,-.55,1)};if(action.tractor){toggleBeam(game);handleEvents();}},
+  version:2,
+  observe:()=>{advanceSimulation();return {...observe(game),screen,mode:evaluationMode?'evaluation':'practice'};},
+  act(action={}){advanceSimulation();if(screen!=='playing')return;agentEnabled=true;agentAction={turn:clamp(Number(action.turn)||0,-1,1),thrust:clamp(Number(action.thrust)||0,-.55,1)};if(action.tractor){toggleBeam(game);handleEvents();}},
   reset:(mission='first',seed)=>launch(mission,seed),
   pause:()=>{if(screen==='playing')pause();},
   resume:()=>{if(screen==='paused')pause();},
 });
-function frame(now){
-  const delta=Math.min(.1,Math.max(0,(now-last)/1000));last=now;
+function advanceSimulation(now=performance.now()){
+  const elapsed=Math.max(0,(now-last)/1000);last=Math.max(last,now);
   if(screen==='playing'){
-    acc+=delta;
-    while(acc>=DT&&screen==='playing'){stepGame(game,agentEnabled?agentAction:keyboardInput(),DT);acc-=DT;handleEvents();}
-    hudTimer+=delta;if(hudTimer>.08){hudTimer=0;updateHud();}
-  }else if(screen==='menu'){
+    acc+=elapsed;
+    while(acc+1e-10>=DT&&screen==='playing'){stepGame(game,agentEnabled?agentAction:keyboardInput(),DT);acc=Math.max(0,acc-DT);handleEvents();}
+    hudTimer+=elapsed;if(hudTimer>.08){hudTimer=0;updateHud();}
+  }
+}
+function frame(now){
+  // Physics catches up all elapsed time; only visual effects cap their delta.
+  advanceSimulation(performance.now());
+  const delta=Math.min(.1,Math.max(0,(now-lastVisual)/1000));lastVisual=now;
+  if(screen==='menu'){
     // Attract scene: the debris keeps moving while the contracts are displayed.
     for(const a of game.asteroids){a.x+=a.vx*delta;a.y+=a.vy*delta;a.angle+=a.spin*delta;}
     for(const c of game.cargo){c.x+=c.vx*delta;c.y+=c.vy*delta;c.angle+=c.spin*delta;}
@@ -166,4 +186,7 @@ function frame(now){
   audio.update(game.ship.thrust,screen==='playing');
   requestAnimationFrame(frame);
 }
+// Hidden tabs may throttle this timer. observe()/act() also catch up before use,
+// charging suspended time to the previous held action rather than the new one.
+if(evaluationMode)setInterval(()=>advanceSimulation(),50);
 renderMissions();renderer.reset(game,true);document.body.dataset.screen='menu';requestAnimationFrame(frame);

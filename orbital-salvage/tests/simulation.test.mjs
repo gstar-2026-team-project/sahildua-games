@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, stepGame, toggleBeam, observe, length, DT, DOCK, MISSIONS, CARGO_OFFSET, BEAM_RANGE, WORLD } from '../src/simulation.js';
+import { createGame, stepGame, toggleBeam, observe, length, dockingZone, DT, DOCK, MISSIONS, CARGO_OFFSET, BEAM_RANGE, WORLD } from '../src/simulation.js';
 
 function advance(g,seconds,input={}){for(let i=0;i<Math.round(seconds/DT);i++)stepGame(g,typeof input==='function'?input(g):input,DT);}
 function empty(id='first'){const g=createGame(id);g.asteroids=[];return g;}
@@ -128,4 +128,19 @@ test('the introductory contract is winnable with coarse keyboard-like inputs and
   }
   assert.equal(g.status,'complete',JSON.stringify({time:g.elapsed,cargo:g.delivered,fuel:g.ship.fuel}));
   assert.ok(g.elapsed<120);assert.equal(g.delivered,2);
+});
+
+test('easy practice seeds vary the route, preserve tutorial layout and remain recoverable',()=>{
+  const route = seed => createGame('practice', seed).cargo.map(c => [c.x,c.y,c.vx,c.vy]);
+  assert.deepEqual(route(17),route(17));assert.notDeepEqual(route(17),route(18));
+  assert.deepEqual(createGame('first',17).cargo.map(c=>[c.x,c.y,c.vx,c.vy]),createGame('first',18).cargo.map(c=>[c.x,c.y,c.vx,c.vy]));
+  for(let seed=1;seed<=100;seed++){
+    const g=createGame('practice',seed);
+    const dock=dockingZone(g);assert.equal(dock.speed,200);
+    assert.ok(g.cargo.every(c=>Math.hypot(c.x-g.ship.x,c.y-g.ship.y)>=260));
+    assert.ok(g.cargo.every(c=>Math.hypot(c.x-dock.x,c.y-dock.y)>=dock.radius+100));
+    if(seed>10)continue;
+    while(g.status==='playing')stepGame(g,pilot(g),DT);
+    assert.equal(g.status,'complete',`seed ${seed}`);
+  }
 });
