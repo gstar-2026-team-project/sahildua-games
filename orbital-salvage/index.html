@@ -17,11 +17,11 @@
   <header class="topbar">
     <a class="brand" href="#" id="brand" aria-label="Orbital Salvage mission selection">
       <svg viewBox="0 0 36 36" fill="none" aria-hidden="true"><path d="M18 3 32 11v14L18 33 4 25V11Z" stroke="currentColor"/><path d="m18 10 7 15-7-4-7 4Z" fill="currentColor"/><path d="m4 11 7 4M32 11l-7 4M18 33v-7" stroke="currentColor"/></svg>
-      <span>ORBITAL<span class="brand-light"> / SALVAGE</span><small>INDEPENDENT RECOVERY DIVISION</small></span>
+      <span>ORBITAL<span class="brand-light"> / SALVAGE</span><small>Grab it. Bring it home.</small></span>
     </a>
-    <div class="top-status"><span class="status-dot"></span><span id="top-status-text">AEGIS SECTOR · LINK ESTABLISHED</span></div>
+    <div class="top-status"><span class="status-dot"></span><span id="top-status-text">Ready for takeoff</span></div>
     <nav class="toolbar" aria-label="Game options">
-      <button id="help-button" class="icon-button" title="Flight manual (H)" aria-label="Open flight manual">?</button>
+      <button id="help-button" class="icon-button" title="How to play (H)" aria-label="How to play">?</button>
       <button id="sound-button" class="icon-button sound" title="Toggle sound (M)" aria-label="Unmute sound" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m11 5-5 4H3v6h3l5 4V5Z" stroke="currentColor" stroke-width="1.5"/><path class="sound-waves" d="M15 8c2 2 2 6 0 8m3-11c4 4 4 10 0 14" stroke="currentColor" stroke-width="1.5"/><path class="sound-cross" d="m16 9 6 6m0-6-6 6" stroke="currentColor" stroke-width="1.5"/></svg></button>
       <button id="pause-button" class="icon-button" title="Pause (P / Esc)" aria-label="Pause mission" hidden>Ⅱ</button>
     </nav>
@@ -30,44 +30,44 @@
   <main>
     <section id="menu" class="menu-screen" aria-labelledby="game-title">
       <div class="menu-copy">
-        <div class="eyebrow"><span class="tiny-line"></span> DEEP SPACE RECOVERY / VOL. 01</div>
+        <div class="eyebrow"><span class="tiny-line"></span> SPACE JUNK. BIG PAYDAY.</div>
         <h1 id="game-title">ORBITAL<br><em>SALVAGE.</em></h1>
         <p class="intro">Lost cargo. Open space. One little tug.<br>Go bring home a good haul.</p>
-        <div class="mission-heading"><span>SELECT YOUR CONTRACT</span><span id="contract-range">01 — 04</span></div>
+        <div class="mission-heading"><span>Pick a mission</span><span id="contract-range">01 — 04</span></div>
         <div id="mission-list" class="mission-list" role="group" aria-label="Choose a mission"></div>
-        <button id="launch-button" class="launch-button"><span>Launch mission <span class="launch-arrow">↗</span></span><small>FIRST RECOVERY · 04:00</small></button>
+        <button id="launch-button" class="launch-button"><span>Let’s fly <span class="launch-arrow">↗</span></span><small>First Recovery · 4 minutes</small></button>
         <div class="menu-keys"><span><kbd>WASD</kbd> Fly</span><span><kbd>SPACE</kbd> Pick up</span><button id="manual-link">How to play ↗</button></div>
       </div>
-      <div class="world-callout" aria-hidden="true"><span class="crosshair">+</span><div>KEPLER RECOVERY STATION<small>SAFE HARBOR / SECTOR 07</small></div></div>
-      <div class="menu-coordinate" aria-hidden="true">AEGIS ORBIT<br><span>03.72 AU / 087° E</span></div>
-      <div class="menu-footer"><span>TAKE YOUR TIME. MIND YOUR MOMENTUM.</span><span>YOUR NEXT GREAT HAUL IS OUT THERE.</span></div>
     </section>
 
     <section id="flight-ui" hidden aria-label="Flight instruments">
-      <div class="hud">
-        <div class="hud-stat cargo-stat"><span class="stat-label">Cargo</span><div><b id="cargo-count">0</b><span id="cargo-total"> / 2</span></div></div>
-        <div class="hud-stat"><span class="stat-label">Time</span><div class="clock"><b id="time-value">04:00</b></div></div>
-        <div class="hud-stat meter-stat"><span class="stat-label">Fuel <b id="fuel-value">100%</b></span><div class="meter"><i id="fuel-fill"></i></div></div>
-        <div class="hud-stat meter-stat"><span class="stat-label">Hull <b id="hull-value">100%</b></span><div class="meter hull"><i id="hull-fill"></i></div></div>
+      <div class="flight-instruments">
+        <div class="hud">
+          <div class="hud-stat cargo-stat"><span class="stat-label">Cargo</span><div><b id="cargo-count">0</b><span id="cargo-total"> / 2</span></div></div>
+          <div class="hud-stat speed-stat"><span class="stat-label">Speed</span><div><b id="speed-value">0</b><span class="speed-unit">m/s</span></div></div>
+          <div class="hud-stat time-stat"><span class="stat-label">Time left</span><div class="clock"><b id="time-value">04:00</b></div></div>
+          <div class="hud-stat meter-stat"><span class="stat-label">Fuel <b id="fuel-value">100%</b></span><div class="meter"><i id="fuel-fill"></i></div></div>
+          <div class="hud-stat meter-stat"><span class="stat-label">Hull <b id="hull-value">100%</b></span><div class="meter hull"><i id="hull-fill"></i></div></div>
+        </div>
+        <div class="flight-telemetry"><span id="dock-state">Dock below 200 m/s</span></div>
+        <div id="wind-banner" class="wind-banner" hidden><span id="wind-arrow">↗</span><b id="wind-title">Wind in 5s</b></div>
       </div>
-      <div class="flight-telemetry"><span id="speed-value">0 m/s</span><span id="dock-state">Dock ready · below 200 m/s</span></div>
-      <div id="wind-banner" class="wind-banner" hidden><span id="wind-arrow">↗</span><b id="wind-title">Wind in 5s</b></div>
       <div id="notification" class="notification" role="status" aria-live="polite"></div>
-      <div class="radar-panel"><canvas id="radar" width="200" height="148" aria-label="Sector map with station, ship, cargo and asteroids"></canvas></div>
+      <div class="radar-panel"><span class="radar-title">Map</span><canvas id="radar" width="200" height="148" aria-label="Sector map with station, ship, cargo and asteroids"></canvas></div>
       <div class="flight-bottom">
-        <div class="beam-panel"><div id="beam-state">WASD fly · Space pick up</div></div>
+        <div class="beam-panel"><div id="beam-state">WASD to fly · Space to grab</div></div>
       </div>
       <div class="touch-controls" aria-label="Touch flight controls"><button data-control="left" aria-label="Rotate left">↶</button><button data-control="forward" aria-label="Thrust">↑</button><button data-control="reverse" aria-label="Reverse thrust">↓</button><button data-control="right" aria-label="Rotate right">↷</button><button id="touch-beam" aria-label="Pick up or drop cargo">◎</button></div>
     </section>
 
     <section id="pause-screen" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="pause-title">
-      <div class="modal pause-modal"><div class="eyebrow">FLIGHT COMPUTER / STANDBY</div><h2 id="pause-title">Catch your<br><em>breath.</em></h2><p>The world can wait a moment.</p><button id="resume-button" class="launch-button">Resume flight <span>↗</span></button><div class="modal-secondary"><button id="restart-paused">Restart mission</button><button id="exit-paused">Mission select</button></div></div>
+      <div class="modal pause-modal"><div class="eyebrow">TAKE A BREATHER</div><h2 id="pause-title">Catch your<br><em>breath.</em></h2><p>The world can wait a moment.</p><button id="resume-button" class="launch-button">Resume flight <span>↗</span></button><div class="modal-secondary"><button id="restart-paused">Restart mission</button><button id="exit-paused">Pick a mission</button></div></div>
     </section>
     <section id="result-screen" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="result-title">
-      <div class="modal result-modal"><div id="result-eyebrow" class="eyebrow">CONTRACT FULFILLED</div><div class="result-emblem" aria-hidden="true">✧</div><h2 id="result-title">Good<br><em>haul.</em></h2><p id="result-description">Every piece has a way home.</p><div class="result-score"><span>TOTAL SALVAGE VALUE</span><b id="result-score">2,450 <small>CR</small></b><span id="best-label"></span></div><div class="result-stats"><div><span>RECOVERED</span><b id="result-cargo">02 / 02</b></div><div><span>PROPELLANT</span><b id="result-fuel">72%</b></div><div><span>TIME FLOWN</span><b id="result-time">01:24</b></div></div><div id="result-bonus" class="result-bonus"></div><p id="result-route"></p><button id="retry-button" class="launch-button">Fly again <span>↗</span></button><div class="modal-secondary"><button id="result-menu">Mission select</button><button id="next-mission">Next contract →</button></div></div>
+      <div class="modal result-modal"><div id="result-eyebrow" class="eyebrow">NICE FLYING!</div><div class="result-emblem" aria-hidden="true">✧</div><h2 id="result-title">Good<br><em>haul.</em></h2><p id="result-description">Every piece has a way home.</p><div class="result-score"><span>Your score</span><b id="result-score">2,450 <small>CR</small></b><span id="best-label"></span></div><div class="result-stats"><div><span>Cargo saved</span><b id="result-cargo">02 / 02</b></div><div><span>Fuel left</span><b id="result-fuel">72%</b></div><div><span>Flight time</span><b id="result-time">01:24</b></div></div><div id="result-bonus" class="result-bonus"></div><p id="result-route"></p><button id="retry-button" class="launch-button">Fly again <span>↗</span></button><div class="modal-secondary"><button id="result-menu">Pick a mission</button><button id="next-mission">Next mission →</button></div></div>
     </section>
     <section id="manual-screen" class="modal-backdrop" hidden role="dialog" aria-modal="true" aria-labelledby="manual-title">
-      <div class="modal manual-modal"><button id="close-manual" class="close-button" aria-label="Close flight manual">×</button><div class="eyebrow">HOW TO PLAY</div><h2 id="manual-title">Pick up.<br><em>Fly home.</em></h2><div class="manual-grid"><article><span>01 / FLY</span><h3>Point and go.</h3><p><kbd>W / ↑</kbd> thrusts. <kbd>A D / ← →</kbd> turn. Release thrust to coast. The dotted line shows your drift.</p></article><article><span>02 / BRAKE</span><h3>Use counter-thrust.</h3><p><kbd>S / ↓</kbd> applies gentle reverse thrust along your nose; it can speed you up if you face against your drift. To brake, face against your drift and use <kbd>W / ↑</kbd>.</p></article><article><span>03 / PICK UP</span><h3>Bring it aboard.</h3><p>Get close and press <kbd>SPACE</kbd>. Cargo locks onto your ship and moves with it. Press again to drop it.</p></article><article><span>04 / DELIVER</span><h3>Follow the home marker.</h3><p>Fly into the marked home circle, also shown on the map. Cargo unloads automatically below 200 m/s on easy contracts, or 120 m/s on later ones. Check your speed and dock indicator.</p></article></div><div class="manual-note"><kbd>P / ESC</kbd> pauses · <kbd>R</kbd> restarts · <kbd>M</kbd> mutes.</div><button id="manual-ready" class="launch-button">Ready to fly <span>↗</span></button></div>
+      <div class="modal manual-modal"><button id="close-manual" class="close-button" aria-label="Close help">×</button><div class="eyebrow">HOW TO PLAY</div><h2 id="manual-title">Pick up.<br><em>Fly home.</em></h2><div class="manual-grid"><article><span>01 / FLY</span><h3>Point and go.</h3><p><kbd>W / ↑</kbd> thrusts. <kbd>A D / ← →</kbd> turn. Release thrust to coast. The dotted line shows your drift.</p></article><article><span>02 / BRAKE</span><h3>Slow your drift.</h3><p>Turn to face your drift, then hold <kbd>S / ↓</kbd> to slow down gently. For a stronger stop, turn around and fire <kbd>W / ↑</kbd>.</p></article><article><span>03 / PICK UP</span><h3>Bring it aboard.</h3><p>Get close and press <kbd>SPACE</kbd>. Cargo locks onto your ship and moves with it. Press again to drop it.</p></article><article><span>04 / DELIVER</span><h3>Bring it home.</h3><p>Fly into the HOME circle to unload automatically. Easy missions allow full speed; harder ones need you below 120 m/s.</p></article></div><div class="manual-note"><kbd>P / ESC</kbd> pauses · <kbd>R</kbd> restarts · <kbd>M</kbd> mutes.</div><button id="manual-ready" class="launch-button">Ready to fly <span>↗</span></button></div>
     </section>
   </main>
   <script type="module" src="./src/main.js"></script>

@@ -21,7 +21,7 @@ soundButton();
 function selectMission(id){
   selected=id;
   document.querySelectorAll('.mission-card').forEach(b=>{const is=b.dataset.mission===id;b.classList.toggle('selected',is);b.setAttribute('aria-pressed',String(is));});
-  const m=MISSIONS.find(m=>m.id===id);$('launch-button').querySelector('small').textContent=`${m.name.toUpperCase()} · ${clock(m.time)}`;
+  const m=MISSIONS.find(m=>m.id===id);$('launch-button').querySelector('small').textContent=`${m.name} · ${clock(m.time)}`;
   if(screen==='menu'){game=createGame(id);renderer.reset(game,true);}
 }
 function renderMissions(){
@@ -29,9 +29,9 @@ function renderMissions(){
   $('mission-list').replaceChildren(...MISSIONS.map(m=>{
     const button=document.createElement('button');button.className='mission-card';button.dataset.mission=m.id;button.setAttribute('aria-pressed',String(m.id===selected));button.setAttribute('aria-label',`${m.name}. ${m.difficulty}. ${m.description}`);
     const number=document.createElement('span');number.className='mission-number';number.textContent=m.label;
-    const copy=document.createElement('div'),title=document.createElement('h3'),sub=document.createElement('p');title.textContent=m.name;sub.textContent=`${m.difficulty} · ${m.count} CONTAINERS`;copy.append(title,sub);
+    const copy=document.createElement('div'),title=document.createElement('h3'),sub=document.createElement('p');title.textContent=m.name;sub.textContent=`${({first:"Learn to fly",practice:"Take it easy",debris:"Dodge the rocks",storm:"Ride the storm"})[m.id]} · ${m.count} cargo`;copy.append(title,sub);
     const check=document.createElement('span');check.className='mission-check';check.textContent=m.id===selected?'◉':'○';check.setAttribute('aria-hidden','true');
-    if(records[m.id]){const best=document.createElement('span');best.className='mission-best';best.textContent=`BEST ${format(records[m.id])}`;button.append(number,copy,best,check);}else button.append(number,copy,check);
+    if(records[m.id]){const best=document.createElement('span');best.className='mission-best';best.textContent=`Best: ${format(records[m.id])}`;copy.append(best);button.append(number,copy,check);}else button.append(number,copy,check);
     button.addEventListener('click',()=>{selectMission(m.id);document.querySelectorAll('.mission-check').forEach(el=>el.textContent=el.parentElement.dataset.mission===selected?'◉':'○');});return button;
   }));
   selectMission(selected);
@@ -45,7 +45,7 @@ function show(next){
   $('pause-button').hidden=evaluationMode||!['playing','paused'].includes(next);
   $('help-button').hidden=evaluationMode&&next==='playing';
   $('pause-button').textContent=next==='paused'?'▷':'Ⅱ';$('pause-button').setAttribute('aria-label',next==='paused'?'Resume mission':'Pause mission');
-  $('top-status-text').textContent=next==='menu'?'AEGIS SECTOR · LINK ESTABLISHED':next==='playing'?'TELEMETRY LIVE · AEGIS SECTOR':'TELEMETRY HOLD · AEGIS SECTOR';
+  $('top-status-text').textContent=next==='menu'?'Ready for takeoff':next==='playing'?'Go get that cargo!':'Take your time';
   if(next!=='playing')releaseInput();
   if(next==='playing')document.activeElement?.blur();
   if(next==='paused')$('resume-button').focus();
@@ -70,17 +70,17 @@ function results(){
   if(resultShown)return;resultShown=true;
   updateHud();
   const complete=game.status==='complete',partial=game.delivered>0&&game.status==='timeout';
-  $('result-eyebrow').textContent=complete?'CONTRACT FULFILLED':partial?'CONTRACT CLOSED':'FLIGHT REPORT / RETURN TO BASE';
+  $('result-eyebrow').textContent=complete?'NICE FLYING!':partial?'EVERY BIT COUNTS':'GIVE IT ANOTHER GO';
   $('result-title').innerHTML=complete?'Good<br><em>haul.</em>':partial?'A little<br><em>goes far.</em>':game.status==='destroyed'?'Lost<br><em>contact.</em>':'Out of<br><em>time.</em>';
-  $('result-description').textContent=complete?'Every piece has a way home. Nice flying.':partial?'Your recovered cargo is secure. There’s more out there.':game.status==='destroyed'?'The debris field got the better of us. Your next run starts fresh.':'The recovery window has closed. Try a shorter approach.';
+  $('result-description').textContent=complete?'Every piece has a way home. Nice flying.':partial?'You saved some cargo! There’s more out there.':game.status==='destroyed'?'The debris field got the better of us. Your next run starts fresh.':'Time’s up! Try a shorter route on your next run.';
   $('result-score').textContent=format(game.score);const unit=document.createElement('small');unit.textContent=' CR';$('result-score').append(unit);
   $('result-cargo').textContent=`${String(game.delivered).padStart(2,'0')} / ${String(game.mission.count).padStart(2,'0')}`;
   $('result-fuel').textContent=`${Math.round(game.ship.fuel/game.mission.fuel*100)}%`;$('result-time').textContent=clock(game.elapsed);
-  $('result-route').textContent=`${game.mission.name} · route seed ${game.seed}`;
+  $('result-route').textContent=`${game.mission.name} · Route ${game.seed}`;
   const best=Number(records[selected])||0,isBest=!evaluationMode&&game.score>best;
   if(isBest){records[selected]=game.score;try{localStorage.setItem('orbital-salvage-records-v1',JSON.stringify(records));}catch{}}
-  $('best-label').textContent=evaluationMode?'EVALUATION RUN':isBest?'✧ NEW PERSONAL BEST':best?`PERSONAL BEST / ${format(best)} CR`:'YOUR NEXT CONTRACT IS WAITING';
-  $('result-bonus').textContent=complete?`+${format(game.bonus)} CR · completion, time & efficiency bonus`:game.delivered? 'Delivered cargo remains credited.':'Tip: use short thrusts and leave room to slow down.';
+  $('best-label').textContent=evaluationMode?'EVALUATION RUN':isBest?'✧ New high score!':best?`Best: ${format(best)} CR`:'Ready for another run?';
+  $('result-bonus').textContent=complete?`+${format(game.bonus)} CR bonus for bringing it all home`:game.delivered? 'Your saved cargo still counts!':'Tip: use short thrusts and leave room to slow down.';
   $('next-mission').hidden=selected===MISSIONS.at(-1).id;show('result');
 }
 function handleEvents(){
@@ -100,12 +100,13 @@ function updateHud(){
   $('fuel-value').textContent=`${Math.ceil(fuel)}%`;$('fuel-fill').style.width=fuel+'%';$('fuel-fill').style.background=fuel<20?'#eeb576':'';
   $('hull-value').textContent=`${Math.ceil(s.integrity)}%`;$('hull-fill').style.width=s.integrity+'%';$('hull-fill').style.background=s.integrity<35?'#e78880':'';
   const speed=length(s),dock=dockingZone(game),safe=speed<dock.speed;
-  $('speed-value').textContent=`${Math.floor(speed)} m/s`;
-  $('dock-state').textContent=safe?`Dock ready · below ${dock.speed} m/s`:`Slow down · below ${dock.speed} m/s to dock`;
+  $('speed-value').textContent=String(Math.floor(speed));
+  $('dock-state').textContent=safe?`Dock below ${dock.speed} m/s`:`Slow down to dock · under ${dock.speed} m/s`;
   $('dock-state').classList.toggle('too-fast',!safe);
   const near=nearestCargo(game),distance=near?Math.hypot(near.x-s.x,near.y-s.y):Infinity,linked=game.attachedId!==null,ready=distance<=BEAM_RANGE;
   const panel=$('beam-state').parentElement;panel.classList.toggle('ready',ready&&!linked);panel.classList.toggle('linked',linked);
-  $('beam-state').textContent=game.status==='complete'?'All cargo recovered':linked?'Cargo aboard · Fly home':ready?'Space · Pick up':'WASD fly · Space pick up';
+  $('beam-state').textContent=game.status==='complete'?'All cargo recovered':linked?'Cargo aboard · Fly home':ready?'Space · Grab cargo':'WASD to fly · Space to grab';
+  if(matchMedia('(pointer: coarse)').matches||innerWidth<760||innerHeight<500){$('beam-state').textContent=linked?'Cargo aboard · Fly home':ready?'Tap ◎ to grab cargo':'Use the arrows to fly';}
   const g=game.gust;$('wind-banner').hidden=!(g.warning||g.active);
   if(g.warning||g.active){$('wind-title').textContent=g.active?'Solar wind':`Wind in ${Math.ceil(game.nextGust-game.elapsed)}s`;$('wind-arrow').style.transform=`rotate(${Math.atan2(g.y,g.x)*180/Math.PI+45}deg)`;}
 }

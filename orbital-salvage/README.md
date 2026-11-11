@@ -70,9 +70,11 @@ Unloading is automatic; you do not need to release cargo. First Recovery accepts
 the ship at its full speed in a generous 165 m zone, as does Open Recovery. Later missions use a 145 m
 zone and ask you to brake below 120 m/s. The station has a clear approach.
 
-During flight, the interface shows compact cargo/time/fuel/hull readings,
-speed and docking-speed readiness, a sector map including the actual recovery
-field, and a short pickup-or-return prompt. Detailed help is available
+During flight, the interface shows Cargo and Speed side by side, followed by
+time, fuel and hull readings. Docking guidance sits beneath the HUD. A sector
+map shows the actual recovery field, and one message area shows pickup hints,
+wind warnings or delivery notifications. Text and controls adapt to portrait
+and landscape screens without stacking over one another. Detailed help is available
 on demand with H or the question-mark button.
 
 ## Contracts and scoring
@@ -109,6 +111,7 @@ src/renderer.js     Canvas scene, camera, trails, particles, minimap
 src/art.js          Hardware composition, loading fallbacks, docking and effects
 src/hardware-sprites.js  Local sprite atlas loading, alpha trimming and drawing
 src/space-background.js  Layered sky, parallax, drifting gas and nearby dust
+src/screen-layout.js  Navigation labels that avoid the HUD, map and ship
 src/main.js         Real-time loop, keyboard/touch input, HUD, menus, records
 src/evaluation.js   Paused/latency-injection episodes and exact-state diagnostic pilot
 src/audio.js        Optional synthesized sound effects

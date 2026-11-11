@@ -193,8 +193,8 @@ export function drawDock(ctx, dock, time, active) {
     ctx.globalAlpha=Math.sin(f*Math.PI)*.5;
     stroke(ctx,px+5,-6,px,0,'#c0d7c5',1);stroke(ctx,px,0,px+5,6,'#c0d7c5',1);
   }
-  ctx.globalAlpha=1;ctx.textAlign='center';ctx.font='500 10px "DM Sans",sans-serif';
-  ctx.letterSpacing='2px';ctx.fillStyle='#bdcdc5';ctx.fillText('HOME',0,32);ctx.letterSpacing='0px';ctx.restore();
+  ctx.globalAlpha=1;ctx.textAlign='center';ctx.font='600 17px "DM Sans",sans-serif';
+  ctx.letterSpacing='1px';ctx.fillStyle='#d7e1d7';ctx.fillText('HOME',0,r*.55);ctx.letterSpacing='0px';ctx.restore();
 }
 
 function drawProceduralAsteroid(ctx, rock) {

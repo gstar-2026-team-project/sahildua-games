@@ -3,6 +3,21 @@ import assert from 'node:assert/strict';
 import { Renderer } from '../src/renderer.js';
 import { createGame, dockingZone, WORLD } from '../src/simulation.js';
 import { layerOffset, skyPlacement } from '../src/space-background.js';
+import { placeEdgeMarker } from '../src/screen-layout.js';
+
+test('edge labels avoid the ship and map in phone and landscape layouts', () => {
+  const cases=[
+    {width:320,ideal:{x:122,y:254},bounds:{left:28,right:292,top:252,bottom:403},obstacles:[
+      {left:115,right:205,top:249,bottom:319},{left:142,right:304,top:262,bottom:412}]},
+    {width:844,ideal:{x:408,y:198},bounds:{left:36,right:808,top:198,bottom:305},obstacles:[
+      {left:377,right:467,top:160,bottom:230},{left:666,right:828,top:225,bottom:374}]},
+  ];
+  for(const c of cases){
+    const {box}=placeEdgeMarker(c.ideal,c.bounds,c.obstacles,72,c.width);
+    for(const obstacle of c.obstacles)assert.ok(box.right<=obstacle.left||box.left>=obstacle.right||box.bottom<=obstacle.top||box.top>=obstacle.bottom);
+    assert.ok(box.left>=0&&box.right<=c.width);
+  }
+});
 
 test('sky continues panning near sector edges and nearer layers travel farther', () => {
   const start={x:WORLD.width/2-200,y:WORLD.height/2-200},end={x:start.x+150,y:start.y+150};

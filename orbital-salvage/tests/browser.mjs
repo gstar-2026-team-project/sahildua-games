@@ -26,6 +26,30 @@ async function key(code,down=true,key=code.replace('Key','').toLowerCase()){
   await send('Input.dispatchKeyEvent',{type:down?'keyDown':'keyUp',key,code,windowsVirtualKeyCode:code==='Space'?32:code==='Escape'?27:key.toUpperCase().charCodeAt(0)});
 }
 const snapshot=()=>evaluate('window.orbitalSalvage.observe()');
+async function assertFlightLayout(label){
+  const issues=await evaluate(`(()=>{
+    const issues=[],visible=el=>{if(!el)return false;const s=getComputedStyle(el),r=el.getBoundingClientRect();return s.display!=='none'&&s.visibility!=='hidden'&&r.width>0&&r.height>0;};
+    const overlap=(a,b)=>a.left<b.right-1&&a.right>b.left+1&&a.top<b.bottom-1&&a.bottom>b.top+1;
+    const selectors=['.topbar','.flight-instruments','.radar-panel','.flight-bottom','.touch-controls','.notification.visible','.wind-banner:not([hidden])'];
+    const panels=selectors.map(selector=>({selector,el:document.querySelector(selector)})).filter(p=>visible(p.el));
+    for(const p of panels){const r=p.el.getBoundingClientRect();if(r.left<0||r.right>innerWidth+1||r.top<0||r.bottom>innerHeight+1)issues.push(p.selector+' outside viewport');}
+    for(let i=0;i<panels.length;i++)for(let j=i+1;j<panels.length;j++){
+      const a=panels[i],b=panels[j];if(a.el.contains(b.el)||b.el.contains(a.el))continue;
+      if(overlap(a.el.getBoundingClientRect(),b.el.getBoundingClientRect()))issues.push(a.selector+' overlaps '+b.selector);
+    }
+    for(const el of document.querySelectorAll('.hud .stat-label,.hud b,.speed-unit,#dock-state,#beam-state,.radar-title')){
+      if(visible(el)&&parseFloat(getComputedStyle(el).fontSize)<14)issues.push(el.className+' text below 14px');
+    }
+    for(const stat of document.querySelectorAll('.hud-stat')){
+      const r=stat.getBoundingClientRect();for(const line of stat.children){const range=document.createRange();range.selectNodeContents(line);for(const text of range.getClientRects())if(text.left<r.left-1||text.right>r.right+1)issues.push(stat.className+' clipped text');}
+    }
+    const cargo=document.querySelector('.cargo-stat').getBoundingClientRect(),speed=document.querySelector('.speed-stat').getBoundingClientRect();
+    if(Math.abs(cargo.top-speed.top)>1||speed.left<cargo.right-1)issues.push('speed must sit immediately beside cargo');
+    const brand=document.querySelector('.brand').getBoundingClientRect(),toolbar=document.querySelector('.toolbar').getBoundingClientRect();if(overlap(brand,toolbar))issues.push('brand overlaps buttons');
+    return issues;
+  })()`);
+  assert.deepEqual(issues,[],`${label}: ${issues.join('; ')}`);
+}
 const report=[];
 try{
   await send('Runtime.enable');await send('Page.enable');
@@ -59,7 +83,8 @@ try{
   assert.equal(skyMotion.reduced,0,'reduced-motion mode should suppress ambient sky motion');
   report.push('Canvas pixel checks: sky drifts at rest, pans during flight, freezes on pause and respects reduced motion.');
   await evaluate('document.getElementById("launch-button").focus()');await key('Space',true,' ');await key('Space',false,' ');await waitFor('document.body.dataset.screen === "playing"');
-  assert.ok(await evaluate('document.querySelector(".hud").getBoundingClientRect().height < 80'));
+  assert.ok(await evaluate('document.querySelector(".hud").getBoundingClientRect().height < 105'));
+  await assertFlightLayout('desktop launch');
   assert.equal(await evaluate('!!document.getElementById("flight-hint")'),false);
   assert.equal(await evaluate('!!document.querySelector(".controls-footer")'),false);
   let before=await snapshot();await delay(10100);let after=await snapshot();
@@ -101,7 +126,7 @@ try{
   await evaluate('window.__qaGap(100)');assert.ok((await snapshot()).ship.fuel<240);
   await evaluate('window.dispatchEvent(new Event("blur"))');assert.equal((await snapshot()).screen,'paused');
   await evaluate('window.orbitalSalvage.reset()');
-  assert.ok(await evaluate('document.getElementById("speed-value").textContent.includes("m/s")'));
+  assert.ok(await evaluate('Number.isFinite(Number(document.getElementById("speed-value").textContent)) && document.querySelector(".speed-unit").textContent === "m/s"'));
   assert.ok(await evaluate('document.getElementById("dock-state").textContent.includes("200 m/s")'));
   report.push('Slow frames retain elapsed time, late controls never affect the past, and practice still pauses on blur.');
   await evaluate(`window.__qaPilot=()=>{
@@ -142,7 +167,7 @@ try{
     assert.ok(await evaluate('document.getElementById("launch-button").getBoundingClientRect().bottom < innerHeight-10'));
     assert.ok(await evaluate('document.getElementById("launch-button").getBoundingClientRect().top >= 0'));
     await screenshot(`menu-${width}`);
-    await click('launch-button');await evaluate('window.__qaAdvance(200)');await screenshot(`flight-${width}`);
+    await click('launch-button');await evaluate('window.__qaAdvance(200)');await assertFlightLayout(`${width} × ${height} flight`);await screenshot(`flight-${width}`);
     const map=await evaluate('({width:document.getElementById("radar").clientWidth,height:document.getElementById("radar").clientHeight})');
     assert.ok(map.width>=(width<760||height<500?144:232)&&map.height>=(width<760||height<500?107:172));
     assert.equal(await evaluate('document.documentElement.scrollWidth <= innerWidth'),true);
@@ -155,9 +180,13 @@ try{
       await send('Input.dispatchMouseEvent',{type:'mouseReleased',x:point.x,y:point.y,button:'left',clickCount:1});
       assert.ok((await snapshot()).ship.fuel<fuel,'pointer control must thrust');
     }
+    await evaluate('window.orbitalSalvage.reset("storm");window.__qaAdvance(13500)');
+    await assertFlightLayout(`${width} × ${height} wind warning`);
+    await screenshot(`wind-${width}`);
     await evaluate('window.orbitalSalvage.pause()');await click('exit-paused');
   }
   report.push('Mission selection scrolls to Launch on short screens; desktop, tablet, phone and landscape have no horizontal overflow.');
+  report.push('Cargo and Speed are adjacent; text is at least 14px; flight panels, wind warnings, map and touch controls do not overlap.');
   await send('Page.navigate',{url:origin+'/?evaluation=1'});await waitFor('!!window.orbitalSalvage');
   await evaluate('window.orbitalSalvage.reset("practice",42);window.orbitalSalvage.act({thrust:1});window.__qaStall(2000);window.dispatchEvent(new Event("blur"))');
   after=await snapshot();assert.equal(after.mode,'evaluation');assert.equal(after.screen,'playing');assert.ok(Math.abs(after.elapsed-2)<1/120);assert.ok(after.ship.fuel<238);

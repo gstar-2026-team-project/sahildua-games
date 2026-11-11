@@ -2,6 +2,7 @@ import { WORLD, BEAM_RANGE, dockingZone, rng, length, clamp, nearestCargo } from
 import { drawShip, drawStation, drawDock, drawAsteroid, drawCargoBody } from './art.js';
 import { SpaceBackground } from './space-background.js';
 import { loadHardware, drawHardware } from './hardware-sprites.js';
+import { placeEdgeMarker } from './screen-layout.js';
 
 const TAU = Math.PI * 2;
 function circle(ctx,x,y,r,fill,stroke){ctx.beginPath();ctx.arc(x,y,r,0,TAU);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}}
@@ -139,9 +140,8 @@ export class Renderer {
       for(let i=0;i<4;i++){ctx.rotate(Math.PI/2);ctx.beginPath();ctx.moveTo(29,-10);ctx.lineTo(29,-17);ctx.lineTo(22,-17);ctx.stroke();}
       ctx.restore();
     }
-    if(!attached){ctx.textAlign='center';ctx.font='10px "DM Sans",sans-serif';ctx.fillStyle='#a9bdc7';ctx.fillText(String(c.id).padStart(2,'0'),0,-40);}
     const dock=dockingZone(game);
-    if(Math.hypot(c.x-dock.x,c.y-dock.y)<dock.radius+35&&length(c)>=dock.speed){ctx.fillStyle='#eeb576';ctx.font='10px "DM Sans",sans-serif';ctx.fillText(`Slow down · below ${dock.speed} m/s`,0,43);}
+    if(Math.hypot(c.x-dock.x,c.y-dock.y)<dock.radius+35&&length(c)>=dock.speed){ctx.textAlign='center';ctx.fillStyle='#eeb576';ctx.font='14px "DM Sans",sans-serif';ctx.fillText(`Slow down · below ${dock.speed} m/s`,0,48);}
     ctx.restore();
   }
   ship(ctx,s,t){drawShip(ctx,s,t);}
@@ -166,17 +166,27 @@ export class Renderer {
   }
   indicators(ctx,game){
     const cam=this.camera,w=this.width,h=this.height,mobile=w<760;
-    const left=mobile?28:36,right=w-(mobile?28:36),top=mobile?148:158,bottom=h-(mobile?155:85);
+    const instruments=document.querySelector('.flight-instruments').getBoundingClientRect();
+    const left=mobile?28:36,right=w-(mobile?28:36),top=instruments.bottom+20,bottom=Math.max(top+20,h-(mobile?165:85));
+    const obstacles=[...document.querySelectorAll('.radar-panel,.flight-bottom,.touch-controls,.notification.visible,.wind-banner:not([hidden])')]
+      .filter(el=>{const style=getComputedStyle(el);return style.display!=='none'&&style.visibility!=='hidden';})
+      .map(el=>el.getBoundingClientRect());
+    const shipX=(game.ship.x-cam.x)*cam.zoom+w/2,shipY=(game.ship.y-cam.y)*cam.zoom+h/2;
+    obstacles.push({left:shipX-45,right:shipX+45,top:shipY-35,bottom:shipY+35});
     const nearest=nearestCargo(game);
     const targets=game.attachedId!==null?[{...dockingZone(game),label:'HOME',color:'#8ae5d5'}]:nearest?[{...nearest,label:'CARGO',color:nearest.color}]:[];
     for(const target of targets){
       const x=(target.x-cam.x)*cam.zoom+w/2,y=(target.y-cam.y)*cam.zoom+h/2;
-      if(x>left&&x<right&&y>top&&y<bottom)continue;
+      if(x>left&&x<right&&y>top&&y<bottom&&!obstacles.some(box=>x>box.left&&x<box.right&&y>box.top&&y<box.bottom))continue;
       const cx=w/2,cy=clamp(h/2,top+10,bottom-10),dx=x-cx,dy=y-cy;
       const scale=Math.min(Math.abs((dx>0?right-cx:left-cx)/(dx||.001)),Math.abs((dy>0?bottom-cy:top-cy)/(dy||.001)),1);
-      const px=clamp(cx+dx*scale,left,right),py=clamp(cy+dy*scale,top,bottom),angle=Math.atan2(dy,dx);
+      const angle=Math.atan2(dy,dx);
+      ctx.font='600 14px "DM Sans",sans-serif';
+      const labelWidth=ctx.measureText(target.label).width+20;
+      const marker=placeEdgeMarker({x:clamp(cx+dx*scale,left,right),y:clamp(cy+dy*scale,top,bottom)},
+        {left,right,top,bottom},obstacles,labelWidth,w),px=marker.x,py=marker.y;
       ctx.save();ctx.translate(px,py);ctx.rotate(angle);ctx.fillStyle=target.color;ctx.globalAlpha=.85;ctx.beginPath();ctx.moveTo(6,0);ctx.lineTo(-4,-4);ctx.lineTo(-4,4);ctx.closePath();ctx.fill();ctx.restore();
-      ctx.textAlign=px>w/2?'right':'left';ctx.fillStyle=target.color;ctx.font='10px "DM Sans",sans-serif';ctx.fillText(target.label,px+(px>w/2?-12:12),py+3);
+      ctx.textAlign=px>w/2?'right':'left';ctx.fillStyle=target.color;ctx.fillText(target.label,px+(px>w/2?-12:12),py+5);
     }
   }
   drawRadar(game,t){
